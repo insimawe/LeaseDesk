@@ -1,0 +1,162 @@
+﻿@page "/"
+@inject LeaseContractService Contracts
+@inject NavigationManager Navigation
+
+<PageTitle>Contracts</PageTitle>
+
+<section class="page-header">
+    <div>
+        <h1>Contracts <small class="text-muted">Lease files</small></h1>
+        <p class="text-muted mb-0">Search by lessee, lessor, or property.</p>
+    </div>
+    <a class="btn btn-primary" href="/contracts/new">
+        <i class="bi bi-plus-lg" aria-hidden="true"></i> New contract
+    </a>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <div class="alert alert-danger" role="alert">@_error</div>
+}
+
+<section class="card">
+    <div class="card-body">
+        <label class="form-label" for="contract-search">Search</label>
+        <input id="contract-search"
+               class="form-control"
+               placeholder="Lessee, lessor, or property"
+               @bind="_query"
+               @bind:event="oninput"
+               @bind:after="LoadAsync" />
+    </div>
+
+    @if (_contracts.Count == 0)
+    {
+        <div class="page-empty">
+            <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+            <p class="mb-0">@(_hasAny ? "No contracts match that search." : "No contracts yet.")</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Lessee</th>
+                        <th>Lessor</th>
+                        <th>Property</th>
+                        <th>Start</th>
+                        <th class="text-end">Monthly rent</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var contract in _contracts)
+                    {
+                        <tr>
+                            <td>@contract.LesseeName</td>
+                            <td>@contract.LessorName</td>
+                            <td>
+                                @contract.PropertyName
+                                <span class="d-block text-muted small">@contract.Unit</span>
+                            </td>
+                            <td>@contract.StartDate.ToString("dd MMM yyyy")</td>
+                            <td class="text-end">@PesoWords.FormatMoney(contract.MonthlyRent)</td>
+                            <td class="text-end text-nowrap actions">
+                                <a class="btn btn-sm btn-icon btn-outline-primary" href="@($"/contracts/{contract.Id}")" title="Open" aria-label="Open">
+                                    <i class="bi bi-pencil" aria-hidden="true"></i>
+                                </a>
+                                <a class="btn btn-sm btn-icon btn-outline-secondary" href="@($"/contracts/{contract.Id}/preview")" title="Preview" aria-label="Preview">
+                                    <i class="bi bi-eye" aria-hidden="true"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-icon btn-outline-secondary" title="Copy" aria-label="Copy" @onclick="() => CopyAsync(contract.Id)">
+                                    <i class="bi bi-copy" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-icon btn-outline-danger" title="Delete" aria-label="Delete" @onclick="() => AskDelete(contract)">
+                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@if (_pendingDelete is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="delete-title">Delete this contract?</h2>
+                    <button type="button" class="btn-close" aria-label="Close" @onclick="CancelDelete"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">
+                        @DeleteLabel will be removed. This cannot be undone.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelDelete">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteAsync">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    private string _query = "";
+    private string? _error;
+    private bool _hasAny;
+    private IReadOnlyList<LeaseContract> _contracts = [];
+    private LeaseContract? _pendingDelete;
+
+    private string DeleteLabel =>
+        string.IsNullOrWhiteSpace(_pendingDelete?.LesseeName)
+            ? "This contract"
+            : $"The contract for {_pendingDelete.LesseeName}";
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _error = null;
+        _contracts = await Contracts.SearchAsync(_query);
+        _hasAny = _contracts.Count > 0 || !string.IsNullOrWhiteSpace(_query);
+        if (_contracts.Count == 0 && string.IsNullOrWhiteSpace(_query))
+            _hasAny = false;
+    }
+
+    private async Task CopyAsync(int id)
+    {
+        try
+        {
+            var copyId = await Contracts.CopyAsync(id);
+            Navigation.NavigateTo($"/contracts/{copyId}");
+        }
+        catch (InvalidOperationException exception)
+        {
+            _error = exception.Message;
+        }
+    }
+
+    private void AskDelete(LeaseContract contract) => _pendingDelete = contract;
+
+    private void CancelDelete() => _pendingDelete = null;
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (_pendingDelete is null)
+            return;
+
+        var id = _pendingDelete.Id;
+        _pendingDelete = null;
+        await Contracts.DeleteAsync(id);
+        await LoadAsync();
+    }
+}

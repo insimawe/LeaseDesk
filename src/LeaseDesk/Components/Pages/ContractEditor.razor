@@ -1,0 +1,296 @@
+@page "/contracts/new"
+@page "/contracts/{Id:int}"
+@page "/contracts/{Id:int}/preview"
+@inject LeaseContractService Contracts
+@inject NavigationManager Navigation
+
+<PageTitle>@(IsNew ? "New contract" : "Edit contract")</PageTitle>
+
+<section class="page-header">
+    <div>
+        <h1>@(IsNew ? "New contract" : "Edit contract") <small class="text-muted">Horizon lease</small></h1>
+        <p class="text-muted mb-0">Fill in the parts that change for this deal. The clause wording stays in the contract file.</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="/">Back to contracts</a>
+</section>
+
+@if (_missing)
+{
+    <div class="alert alert-warning" role="alert">
+        That contract does not exist.
+        <a href="/">Return to the list.</a>
+    </div>
+}
+else if (Contract is not null)
+{
+    <div class="@(IsNew ? null : "studio")">
+        @if (!IsNew)
+        {
+            <ContractPages ContractId="Contract.Id" Revision="_revision" />
+        }
+        <div class="@(IsNew ? null : "studio-form")">
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="alert alert-danger" role="alert">@_error</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_saved))
+    {
+        <div class="alert alert-success" role="status">@_saved</div>
+    }
+    @if (!IsNew)
+    {
+        var gaps = LeaseDocumentService.MissingFields(Contract);
+        <div class="studio-toolbar">
+            @if (gaps.Count == 0)
+            {
+                <a class="btn btn-sm btn-primary" href="@($"/contracts/{Contract.Id}/word")">Word</a>
+                <a class="btn btn-sm btn-outline-primary" href="@($"/contracts/{Contract.Id}/pdf?download=true")">PDF</a>
+            }
+            else
+            {
+                <span class="text-muted small">Fill in @string.Join(", ", gaps) before downloading.</span>
+            }
+        </div>
+    }
+
+    <EditForm Model="Contract" OnValidSubmit="SaveAsync">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" />
+
+        <section class="card mb-3">
+            <div class="card-body">
+                <h2 class="h5">Parties</h2>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Lessor name</label>
+                        <InputText class="form-control" @bind-Value="Contract.LessorName" />
+                        <ValidationMessage For="() => Contract.LessorName" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Representative <span class="text-muted">(optional)</span></label>
+                        <InputText class="form-control" @bind-Value="Contract.LessorRepresentative" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Lessor address</label>
+                        <InputText class="form-control" @bind-Value="Contract.LessorAddress" />
+                        <ValidationMessage For="() => Contract.LessorAddress" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Lessee name</label>
+                        <InputText class="form-control" @bind-Value="Contract.LesseeName" />
+                        <ValidationMessage For="() => Contract.LesseeName" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Lessee address</label>
+                        <InputText class="form-control" @bind-Value="Contract.LesseeAddress" />
+                        <ValidationMessage For="() => Contract.LesseeAddress" />
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card mb-3">
+            <div class="card-body">
+                <h2 class="h5">Property</h2>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Property</label>
+                        <InputText class="form-control" @bind-Value="Contract.PropertyName" />
+                        <ValidationMessage For="() => Contract.PropertyName" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Unit</label>
+                        <InputText class="form-control" @bind-Value="Contract.Unit" />
+                        <ValidationMessage For="() => Contract.Unit" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Property address</label>
+                        <InputText class="form-control" @bind-Value="Contract.PropertyAddress" />
+                        <ValidationMessage For="() => Contract.PropertyAddress" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Unit type</label>
+                        <InputText class="form-control" @bind-Value="Contract.UnitType" />
+                        <ValidationMessage For="() => Contract.UnitType" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Maximum occupants</label>
+                        <InputNumber class="form-control" @bind-Value="Contract.MaxOccupants" />
+                        <ValidationMessage For="() => Contract.MaxOccupants" />
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card mb-3">
+            <div class="card-body">
+                <h2 class="h5">Term and rent</h2>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Start date</label>
+                        <InputDate class="form-control" @bind-Value="Contract.StartDate" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Term (years)</label>
+                        <InputNumber class="form-control" @bind-Value="Contract.TermYears" />
+                        <ValidationMessage For="() => Contract.TermYears" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">End date</label>
+                        <input class="form-control" value="@Contract.EndDate.ToString("dd MMM yyyy")" readonly />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Signing date</label>
+                        <InputDate class="form-control" @bind-Value="Contract.SigningDate" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Signing place</label>
+                        <InputText class="form-control" @bind-Value="Contract.SigningPlace" />
+                        <ValidationMessage For="() => Contract.SigningPlace" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Monthly rent</label>
+                        <InputNumber class="form-control" @bind-Value="Contract.MonthlyRent" @bind-Value:after="SyncReceipt" />
+                        <div class="form-text">@PesoWords.Format(Contract.MonthlyRent)</div>
+                        <ValidationMessage For="() => Contract.MonthlyRent" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Post-dated checks</label>
+                        <InputNumber class="form-control" @bind-Value="Contract.PostDatedCheckCount" />
+                        <ValidationMessage For="() => Contract.PostDatedCheckCount" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Advance (months)</label>
+                        <InputNumber class="form-control" @bind-Value="Contract.AdvanceMonths" @bind-Value:after="SyncReceipt" />
+                        <div class="form-text">@PesoWords.FormatMoney(Contract.AdvanceAmount) — @PesoWords.Format(Contract.AdvanceAmount)</div>
+                        <ValidationMessage For="() => Contract.AdvanceMonths" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Security deposit (months)</label>
+                        <InputNumber class="form-control" @bind-Value="Contract.SecurityDepositMonths" @bind-Value:after="SyncReceipt" />
+                        <div class="form-text">@PesoWords.FormatMoney(Contract.SecurityDepositAmount) — @PesoWords.Format(Contract.SecurityDepositAmount)</div>
+                        <ValidationMessage For="() => Contract.SecurityDepositMonths" />
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card mb-3">
+            <div class="card-body">
+                <h2 class="h5">Payment receipt</h2>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Amount received</label>
+                        <InputNumber class="form-control" @bind-Value="Contract.ReceiptAmount" @bind-Value:after="MarkReceiptEdited" />
+                        <div class="form-text">@PesoWords.Format(Contract.ReceiptAmount). Starts as advance plus deposit.</div>
+                        <ValidationMessage For="() => Contract.ReceiptAmount" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Date received</label>
+                        <InputDate class="form-control" @bind-Value="Contract.ReceiptDate" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Payer</label>
+                        <InputText class="form-control" @bind-Value="Contract.ReceiptPayer" placeholder="Defaults to the lessee" />
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card mb-3">
+            <div class="card-body">
+                <h2 class="h5">Witnesses</h2>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">First witness</label>
+                        <InputText class="form-control" @bind-Value="Contract.WitnessOneName" />
+                        <ValidationMessage For="() => Contract.WitnessOneName" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Second witness</label>
+                        <InputText class="form-control" @bind-Value="Contract.WitnessTwoName" />
+                        <ValidationMessage For="() => Contract.WitnessTwoName" />
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <button type="submit" class="btn btn-primary">Save</button>
+    </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    private LeaseContract? Contract { get; set; }
+    private bool _missing;
+    private bool _receiptEdited;
+    private string? _error;
+    private string? _saved;
+    private int _revision;
+
+    private bool IsNew => Contract?.Id == 0;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _error = null;
+        _saved = null;
+        _receiptEdited = false;
+
+        if (Id is null)
+        {
+            Contract = LeaseContract.CreateHorizonDefault();
+            return;
+        }
+
+        Contract = await Contracts.GetAsync(Id.Value);
+        _missing = Contract is null;
+        if (Contract is not null)
+        {
+            var computed = Contract.AdvanceAmount + Contract.SecurityDepositAmount;
+            _receiptEdited = Contract.ReceiptAmount != computed;
+        }
+    }
+
+    private void SyncReceipt()
+    {
+        if (Contract is null || _receiptEdited)
+            return;
+
+        Contract.ReceiptAmount = Contract.AdvanceAmount + Contract.SecurityDepositAmount;
+    }
+
+    private void MarkReceiptEdited() => _receiptEdited = true;
+
+    private async Task SaveAsync()
+    {
+        if (Contract is null)
+            return;
+
+        _error = null;
+        _saved = null;
+        var wasNew = Contract.Id == 0;
+
+        try
+        {
+            await Contracts.SaveAsync(Contract);
+        }
+        catch (InvalidOperationException exception)
+        {
+            _error = exception.Message;
+            return;
+        }
+
+        if (wasNew)
+        {
+            Navigation.NavigateTo("/", replace: true);
+            return;
+        }
+
+        _revision++;
+        _saved = "Saved.";
+    }
+}

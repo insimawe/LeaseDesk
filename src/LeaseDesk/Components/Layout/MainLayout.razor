@@ -1,0 +1,125 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject NavigationManager Navigation
+@inject IJSRuntime JavaScript
+
+<div class="app-shell @(_navigationCollapsed ? "is-collapsed" : null) @(_mobileNavigationOpen ? "is-mobile-open" : null)"
+     @onkeydown="OnKeyDown">
+    <header class="app-header">
+        <a href="/" class="app-brand">
+            <img src="images/rent-ph.png" alt="" class="app-logo" />
+            <span>LeaseDesk</span>
+        </a>
+        <button type="button"
+                class="btn btn-link app-nav-toggle"
+                aria-label="Toggle navigation"
+                aria-controls="app-sidebar"
+                aria-pressed="@_mobileNavigationOpen"
+                @onclick="ToggleMobileNavigation">
+            <i class="bi bi-list" aria-hidden="true"></i>
+        </button>
+        <div class="app-header-actions">
+            <button type="button"
+                    class="btn btn-link app-theme-toggle"
+                    aria-pressed="@_isDark"
+                    aria-label="@ThemeToggleText"
+                    title="@ThemeToggleText"
+                    @onclick="ToggleThemeAsync">
+                <i class="bi @(_isDark ? "bi-sun" : "bi-moon")" aria-hidden="true"></i>
+                <span>@(_isDark ? "Light" : "Dark")</span>
+            </button>
+        </div>
+    </header>
+
+    <aside class="app-sidebar" id="app-sidebar" aria-label="Primary navigation">
+        <nav>
+            <ul class="app-menu">
+                <li>
+                    <NavLink href="/" Match="NavLinkMatch.All">
+                        <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+                        <span>Contracts</span>
+                    </NavLink>
+                </li>
+            </ul>
+        </nav>
+        <button type="button"
+                class="btn btn-sm app-sidebar-edge"
+                aria-label="@(_navigationCollapsed ? "Expand navigation" : "Collapse navigation")"
+                title="@(_navigationCollapsed ? "Expand navigation" : "Collapse navigation")"
+                aria-controls="app-sidebar"
+                aria-expanded="@(!_navigationCollapsed)"
+                @onclick="ToggleNavigation">
+            <i class="bi @(_navigationCollapsed ? "bi-chevron-right" : "bi-chevron-left")" aria-hidden="true"></i>
+        </button>
+    </aside>
+
+    @if (_mobileNavigationOpen)
+    {
+        <button type="button" class="app-backdrop" aria-label="Close navigation" @onclick="CloseMobileNavigation"></button>
+    }
+
+    <div class="app-content">
+        <div class="container-fluid">
+            @Body
+        </div>
+    </div>
+
+    <footer class="app-footer">
+        <div class="container-fluid">
+            <strong>Copyright &copy; @DateTime.Now.Year LeaseDesk.</strong>
+        </div>
+    </footer>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <button type="button" class="dismiss" aria-label="Dismiss">&times;</button>
+</div>
+
+@code {
+    private bool _navigationCollapsed;
+    private bool _mobileNavigationOpen;
+    private bool _isDark;
+
+    private string ThemeToggleText => _isDark ? "Switch to light mode" : "Switch to dark mode";
+
+    protected override void OnInitialized() => Navigation.LocationChanged += OnLocationChanged;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _isDark = await JavaScript.InvokeAsync<bool>("leaseDeskTheme.isDark");
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleThemeAsync()
+    {
+        _isDark = await JavaScript.InvokeAsync<bool>("leaseDeskTheme.toggle");
+    }
+
+    private void ToggleNavigation() => _navigationCollapsed = !_navigationCollapsed;
+
+    private void ToggleMobileNavigation() => _mobileNavigationOpen = !_mobileNavigationOpen;
+
+    private void CloseMobileNavigation() => _mobileNavigationOpen = false;
+
+    private void OnKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+            CloseMobileNavigation();
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        _ = InvokeAsync(() =>
+        {
+            CloseMobileNavigation();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
+}

@@ -1,0 +1,29 @@
+@inject IJSRuntime JavaScript
+
+<div class="studio-pages" id="@_hostId"></div>
+
+@code {
+    [Parameter]
+    public int ContractId { get; set; }
+
+    [Parameter]
+    public int Revision { get; set; }
+
+    private readonly string _hostId = "lease-pages-" + Guid.NewGuid().ToString("N");
+    private int _renderedRevision = -1;
+    private int _renderedId;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (ContractId == 0 || (_renderedId == ContractId && _renderedRevision == Revision))
+            return;
+
+        _renderedId = ContractId;
+        _renderedRevision = Revision;
+        await JavaScript.InvokeVoidAsync(
+            "leaseDeskPreview.render",
+            _hostId,
+            $"/contracts/{ContractId}/pdf",
+            $"/contracts/{ContractId}/word?preview=true");
+    }
+}
