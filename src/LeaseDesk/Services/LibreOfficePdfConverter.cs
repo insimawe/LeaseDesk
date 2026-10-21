@@ -6,9 +6,9 @@ public class LibreOfficePdfConverter
 {
     public async Task<byte[]> ConvertAsync(byte[] docx, CancellationToken cancellationToken = default)
     {
-        var soffice = FindSoffice()
-            ?? throw new InvalidOperationException(
-                "LibreOffice is not installed, so the PDF could not be created. The Word file uses the same filled contract.");
+        var soffice = FindSoffice();
+        if (soffice is null)
+            return await ConvertWithBrowserAsync(docx, cancellationToken);
 
         var directory = Path.Combine(Path.GetTempPath(), "leasedesk-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
@@ -90,5 +90,70 @@ public class LibreOfficePdfConverter
         }
 
         return null;
+    }
+
+    private static async Task<byte[]> ConvertWithBrowserAsync(byte[] docx, CancellationToken cancellationToken)
+    {
+        var browser = FindBrowser()
+            ?? throw new InvalidOperationException(
+                "The PDF could not be created because neither LibreOffice nor Microsoft Edge is available. Download the Word file instead.");
+
+        var directory = Path.Combine(Path.GetTempPath(), "leasedesk-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var htmlPath = Path.Combine(directory, "lease.html");
+        var pdfPath = Path.Combine(directory, "lease.pdf");
+        var profile = Path.Combine(directory, "profile");
+
+        try
+        {
+            await File.WriteAllTextAsync(htmlPath, DocxPrintHtml.Create(docx), cancellationToken);
+            var start = new ProcessStartInfo
+            {
+                FileName = browser,
+                WorkingDirectory = directory,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            start.ArgumentList.Add("--headless");
+            start.ArgumentList.Add("--disable-gpu");
+            start.ArgumentList.Add("--no-first-run");
+            start.ArgumentList.Add("--no-pdf-header-footer");
+            start.ArgumentList.Add("--user-data-dir=" + profile);
+            start.ArgumentList.Add("--print-to-pdf=" + pdfPath);
+            start.ArgumentList.Add(new Uri(htmlPath).AbsoluteUri);
+
+            using var process = Process.Start(start)
+                ?? throw new InvalidOperationException("The browser could not be started to create the PDF.");
+            await process.WaitForExitAsync(cancellationToken);
+            if (!File.Exists(pdfPath))
+                throw new InvalidOperationException("The PDF could not be created. Download the Word file instead.");
+
+            return await File.ReadAllBytesAsync(pdfPath, cancellationToken);
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+            catch (IOException)
+            {
+            }
+        }
+    }
+
+    private static string? FindBrowser()
+    {
+        var candidates = new[]
+        {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft", "Edge", "Application", "msedge.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Microsoft", "Edge", "Application", "msedge.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Google", "Chrome", "Application", "chrome.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Google", "Chrome", "Application", "chrome.exe")
+        };
+
+        return candidates.FirstOrDefault(File.Exists);
     }
 }

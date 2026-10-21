@@ -34,19 +34,19 @@ app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages:
 app.UseHttpsRedirection();
 app.UseAntiforgery();
 
-app.MapGet("/contracts/{id:int}/word", async (int id, bool preview, LeaseContractService contracts, LeaseDocumentService documents) =>
+app.MapGet("/contracts/{id:int}/word", async (int id, bool? preview, LeaseContractService contracts, LeaseDocumentService documents) =>
 {
     var contract = await contracts.GetAsync(id);
     if (contract is null)
         return Results.NotFound();
-    if (!preview && LeaseDocumentService.MissingFields(contract).Count > 0)
+    if (preview != true && LeaseDocumentService.MissingFields(contract).Count > 0)
         return Results.BadRequest("Fill in the missing details before downloading.");
 
     var bytes = documents.CreateWord(contract);
     return Results.File(
         bytes,
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        preview ? null : LeaseDocumentService.DownloadName(contract, "docx"));
+        preview == true ? null : LeaseDocumentService.DownloadName(contract, "docx"));
 });
 
 app.MapGet("/contracts/{id:int}/pdf", async (int id, bool download, LeaseContractService contracts, LeaseDocumentService documents, LibreOfficePdfConverter pdf) =>
