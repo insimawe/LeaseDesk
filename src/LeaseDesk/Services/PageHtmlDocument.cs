@@ -38,8 +38,7 @@ public static partial class PageHtmlDocument
                 if (wrote)
                     body.Append(new Paragraph(new Run(new Break { Type = BreakValues.Page })));
 
-                foreach (var block in blocks)
-                    body.Append(block);
+                body.Append(PageFrame(blocks, page));
                 wrote = true;
             }
 
@@ -327,7 +326,63 @@ public static partial class PageHtmlDocument
         && !value.Contains("hidden", StringComparison.OrdinalIgnoreCase)
         && DigitPattern().IsMatch(value);
 
+    private static Table PageFrame(IReadOnlyList<OpenXmlElement> blocks, IElement page)
+    {
+        var box = Box(page);
+        var contentWidth = Math.Max(box.Width - box.Left - box.Right, 1000);
+        var contentHeight = Math.Max(box.Height - box.Top - box.Bottom, 1000);
+        var width = contentWidth.ToString(CultureInfo.InvariantCulture);
+
+        var cell = new TableCell(
+            new TableCellProperties(
+                new TableCellWidth { Width = width, Type = TableWidthUnitValues.Dxa },
+                new TableCellMargin(
+                    new TopMargin { Width = "0", Type = TableWidthUnitValues.Dxa },
+                    new LeftMargin { Width = "0", Type = TableWidthUnitValues.Dxa },
+                    new BottomMargin { Width = "0", Type = TableWidthUnitValues.Dxa },
+                    new RightMargin { Width = "0", Type = TableWidthUnitValues.Dxa })));
+        foreach (var block in blocks)
+            cell.Append(block);
+        if (cell.LastChild is not Wordprocessing.Paragraph)
+            cell.Append(new Wordprocessing.Paragraph());
+
+        return new Table(
+            new TableProperties(
+                new TableWidth { Width = width, Type = TableWidthUnitValues.Dxa },
+                new TableLayout { Type = TableLayoutValues.Fixed },
+                new TableBorders(
+                    new TopBorder { Val = BorderValues.Nil },
+                    new LeftBorder { Val = BorderValues.Nil },
+                    new BottomBorder { Val = BorderValues.Nil },
+                    new RightBorder { Val = BorderValues.Nil },
+                    new InsideHorizontalBorder { Val = BorderValues.Nil },
+                    new InsideVerticalBorder { Val = BorderValues.Nil })),
+            new TableGrid(new GridColumn { Width = width }),
+            new TableRow(
+                new TableRowProperties(
+                    new TableRowHeight { Val = (uint)contentHeight, HeightType = HeightRuleValues.Exact },
+                    new CantSplit()),
+                cell));
+    }
+
     private static SectionProperties Section(IElement page)
+    {
+        var box = Box(page);
+        return new SectionProperties(
+            new PageSize { Width = (uint)box.Width, Height = (uint)box.Height },
+            new PageMargin
+            {
+                Top = box.Top,
+                Bottom = box.Bottom,
+                Left = (uint)Math.Max(box.Left, 0),
+                Right = (uint)Math.Max(box.Right, 0),
+                Header = 0,
+                Footer = 0,
+                Gutter = 0
+            });
+    }
+
+    private static PageBox Box(IElement page)
     {
         var width = Twips(Css(page, "width"), 12240);
         var height = Twips(Css(page, "min-height") ?? Css(page, "height"), 15840);
@@ -343,20 +398,10 @@ public static partial class PageHtmlDocument
 
         if (width < 4000) width = 12240;
         if (height < 4000) height = 15840;
-
-        return new SectionProperties(
-            new PageSize { Width = (uint)width, Height = (uint)height },
-            new PageMargin
-            {
-                Top = padding.Top,
-                Bottom = padding.Bottom,
-                Left = (uint)Math.Max(padding.Left, 0),
-                Right = (uint)Math.Max(padding.Right, 0),
-                Header = 720,
-                Footer = 720,
-                Gutter = 0
-            });
+        return new PageBox(width, height, padding.Top, padding.Right, padding.Bottom, padding.Left);
     }
+
+    private readonly record struct PageBox(int Width, int Height, int Top, int Right, int Bottom, int Left);
 
     private static void AddStyles(MainDocumentPart main)
     {

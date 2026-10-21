@@ -262,6 +262,13 @@ a:hover {
     margin-bottom: 12px;
 }
 
+.page-actions {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+}
+
 .page-tools {
     display: flex;
     flex-wrap: wrap;
@@ -658,9 +665,12 @@ a:hover {
         margin: 2px 0 0;
     }
 
-    .page-header > .btn,
-    .page-header > a.btn {
-        align-self: stretch;
+    .page-actions {
+        width: 100%;
+    }
+
+    .page-actions .btn {
+        flex: 1;
         text-align: center;
     }
 

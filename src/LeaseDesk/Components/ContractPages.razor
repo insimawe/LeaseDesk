@@ -43,6 +43,9 @@
     public Task<string> ReadHtmlAsync() =>
         JavaScript.InvokeAsync<string>("leaseDeskPreview.read", _hostId).AsTask();
 
+    public Task DownloadAsync(string url) =>
+        JavaScript.InvokeVoidAsync("leaseDeskPreview.download", _hostId, url).AsTask();
+
     private async Task LoadAsync()
     {
         if (ContractId == 0 || (_loadedId == ContractId && _loadedRevision == Revision))

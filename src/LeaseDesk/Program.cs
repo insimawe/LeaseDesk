@@ -49,25 +49,53 @@ app.MapGet("/contracts/{id:int}/word", async (int id, bool? preview, LeaseContra
         preview == true ? null : LeaseDocumentService.DownloadName(contract, "docx"));
 });
 
-app.MapGet("/contracts/{id:int}/pdf", async (int id, bool download, LeaseContractService contracts, LeaseDocumentService documents, LibreOfficePdfConverter pdf) =>
+app.MapPost("/contracts/{id:int}/word", async (int id, bool pages, HttpRequest request, LeaseContractService contracts, LeaseDocumentService documents) =>
 {
     var contract = await contracts.GetAsync(id);
     if (contract is null)
         return Results.NotFound();
-    if (download && LeaseDocumentService.MissingFields(contract).Count > 0)
+    if (LeaseDocumentService.MissingFields(contract).Count > 0)
         return Results.BadRequest("Fill in the missing details before downloading.");
+
+    var bytes = documents.CreateWord(contract);
+    if (pages)
+    {
+        using var reader = new StreamReader(request.Body);
+        var html = await reader.ReadToEndAsync();
+        var edited = PageHtmlDocument.Create(html);
+        if (edited.Length > 0)
+            bytes = edited;
+    }
+
+    return Results.File(
+        bytes,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        LeaseDocumentService.DownloadName(contract, "docx"));
+}).DisableAntiforgery();
+
+app.MapPost("/contracts/{id:int}/pdf", async (int id, HttpRequest request, LeaseContractService contracts, LibreOfficePdfConverter pdf) =>
+{
+    var contract = await contracts.GetAsync(id);
+    if (contract is null)
+        return Results.NotFound();
+    if (LeaseDocumentService.MissingFields(contract).Count > 0)
+        return Results.BadRequest("Fill in the missing details before downloading.");
+
+    using var reader = new StreamReader(request.Body);
+    var html = await reader.ReadToEndAsync();
+    if (string.IsNullOrWhiteSpace(html))
+        return Results.BadRequest("The contract pages are not ready to download yet.");
 
     try
     {
-        var docx = documents.CreateWord(contract);
-        var bytes = await pdf.ConvertAsync(docx);
-        return Results.File(bytes, "application/pdf", download ? LeaseDocumentService.DownloadName(contract, "pdf") : null);
+        var bytes = await pdf.PrintPagesAsync(html);
+        return Results.File(bytes, "application/pdf", LeaseDocumentService.DownloadName(contract, "pdf"));
     }
     catch (InvalidOperationException exception)
     {
         return Results.Text(exception.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
     }
-});
+}).DisableAntiforgery();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()

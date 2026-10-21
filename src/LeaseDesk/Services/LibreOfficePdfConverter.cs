@@ -4,6 +4,9 @@ namespace LeaseDesk.Services;
 
 public class LibreOfficePdfConverter
 {
+    public Task<byte[]> PrintPagesAsync(string html, CancellationToken cancellationToken = default) =>
+        PrintHtmlAsync(PagePrintHtml.Wrap(html), cancellationToken);
+
     public async Task<byte[]> ConvertAsync(byte[] docx, CancellationToken cancellationToken = default)
     {
         var soffice = FindSoffice();
@@ -92,7 +95,10 @@ public class LibreOfficePdfConverter
         return null;
     }
 
-    private static async Task<byte[]> ConvertWithBrowserAsync(byte[] docx, CancellationToken cancellationToken)
+    private static Task<byte[]> ConvertWithBrowserAsync(byte[] docx, CancellationToken cancellationToken) =>
+        PrintHtmlAsync(DocxPrintHtml.Create(docx), cancellationToken);
+
+    private static async Task<byte[]> PrintHtmlAsync(string html, CancellationToken cancellationToken)
     {
         var browser = FindBrowser()
             ?? throw new InvalidOperationException(
@@ -106,7 +112,7 @@ public class LibreOfficePdfConverter
 
         try
         {
-            await File.WriteAllTextAsync(htmlPath, DocxPrintHtml.Create(docx), cancellationToken);
+            await File.WriteAllTextAsync(htmlPath, html, cancellationToken);
             var start = new ProcessStartInfo
             {
                 FileName = browser,

@@ -57,7 +57,11 @@ window.leaseDeskPreview = {
         if (!host) return "";
 
         host.querySelectorAll("#lease-caret").forEach(function (marker) { marker.remove(); });
+        const pages = [...host.querySelectorAll("section.docx")];
+        const zooms = pages.map(function (page) { return page.style.zoom; });
+        pages.forEach(function (page) { page.style.zoom = ""; });
         let html = host.innerHTML;
+        pages.forEach(function (page, index) { page.style.zoom = zooms[index]; });
         const styles = [...document.head.querySelectorAll("style")]
             .map(function (style) { return style.outerHTML; })
             .filter(function (text) { return text.indexOf("docx") >= 0; })
@@ -65,8 +69,38 @@ window.leaseDeskPreview = {
         if (styles && html.indexOf("<style") < 0)
             html = styles + html;
         return sanitize(html);
+    },
+
+    download: async function (hostId, url) {
+        const html = this.read(hostId);
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "text/html; charset=utf-8" },
+            body: html
+        });
+        if (!response.ok) {
+            window.alert(await response.text() || "The file could not be downloaded.");
+            return;
+        }
+
+        const blob = await response.blob();
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName(response) || "lease";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(link.href);
     }
 };
+
+function fileName(response) {
+    const header = response.headers.get("Content-Disposition") || "";
+    const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header);
+    if (encoded) return decodeURIComponent(encoded[1]);
+    const plain = /filename="?([^";]+)"?/i.exec(header);
+    return plain ? plain[1] : "";
+}
 
 document.addEventListener("mousedown", function (event) {
     const tools = event.target.closest && event.target.closest(".page-tools");

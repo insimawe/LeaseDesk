@@ -12,7 +12,13 @@
         <h1>@(IsNew ? "New contract" : "Edit contract") <small class="text-muted">@(Contract?.IsCustomDocument == true ? "Custom" : "Horizon lease")</small></h1>
         <p class="text-muted mb-0">@(IsNew ? "Start from the Horizon lease, or from a blank page. After that, the page itself can be written and changed." : Contract?.IsCustomDocument == true ? "Click the page and type. Enter starts a new paragraph, and the toolbar changes fonts, lists, and layout." : "Horizon lease is only the starting format. Click the page to add or rewrite any clause. Enter starts a new paragraph.")</p>
     </div>
-    <a class="btn btn-outline-secondary" href="/">Back to contracts</a>
+    <div class="page-actions">
+        @if (!IsNew && !_missing)
+        {
+            <button type="submit" form="contract-form" class="btn btn-primary">Save</button>
+        }
+        <a class="btn btn-outline-secondary" href="/">Back to contracts</a>
+    </div>
 </section>
 
 @if (_missing)
@@ -135,8 +141,8 @@ else if (Contract is not null)
         <div class="studio-toolbar">
             @if (gaps.Count == 0)
             {
-                <a class="btn btn-sm btn-primary" href="@($"/contracts/{Contract.Id}/word")" data-enhance="false">Word</a>
-                <a class="btn btn-sm btn-outline-primary" href="@($"/contracts/{Contract.Id}/pdf?download=true")" data-enhance="false">PDF</a>
+                <button type="button" class="btn btn-sm btn-primary" @onclick="DownloadWordAsync">Word</button>
+                <button type="button" class="btn btn-sm btn-outline-primary" @onclick="DownloadPdfAsync">PDF</button>
             }
             else
             {
@@ -145,7 +151,7 @@ else if (Contract is not null)
         </div>
     }
 
-    <EditForm EditContext="_editContext" OnSubmit="SaveAsync">
+    <EditForm id="contract-form" EditContext="_editContext" OnSubmit="SaveAsync">
         <DataAnnotationsValidator />
         <ValidationSummary class="text-danger" />
 
@@ -307,7 +313,6 @@ else if (Contract is not null)
             </div>
         </section>
 
-        <button type="submit" class="btn btn-primary">Save</button>
     </EditForm>
         </div>
     </div>
@@ -386,6 +391,19 @@ else if (Contract is not null)
             await _pages.MarkCleanAsync();
         await SaveAsync(skipPageCapture: true);
     }
+
+    private async Task DownloadWordAsync()
+    {
+        if (Contract is null || _pages is null)
+            return;
+
+        await _pages.DownloadAsync($"/contracts/{Contract.Id}/word?pages=true");
+    }
+
+    private Task DownloadPdfAsync() =>
+        _pages is null || Contract is null
+            ? Task.CompletedTask
+            : _pages.DownloadAsync($"/contracts/{Contract.Id}/pdf");
 
     private async Task SaveAsync() => await SaveAsync(skipPageCapture: false);
 
