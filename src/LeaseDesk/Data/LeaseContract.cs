@@ -107,6 +107,8 @@ public class LeaseContract
     [Display(Name = "Second witness")]
     public string WitnessTwoName { get; set; } = "";
 
+    public string? PageHtml { get; set; }
+
     public DateTime CreatedAtUtc { get; set; }
 
     public DateTime UpdatedAtUtc { get; set; }

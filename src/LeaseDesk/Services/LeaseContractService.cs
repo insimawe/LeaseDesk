@@ -85,6 +85,7 @@ public class LeaseContractService(LeaseDeskDbContext db)
             ReceiptPayer = source.ReceiptPayer,
             WitnessOneName = source.WitnessOneName,
             WitnessTwoName = source.WitnessTwoName,
+            PageHtml = source.PageHtml,
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };

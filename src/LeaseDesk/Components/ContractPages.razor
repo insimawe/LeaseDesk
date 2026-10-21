@@ -9,21 +9,51 @@
     [Parameter]
     public int Revision { get; set; }
 
+    [Parameter]
+    public string? PageHtml { get; set; }
+
     private readonly string _hostId = "lease-pages-" + Guid.NewGuid().ToString("N");
-    private int _renderedRevision = -1;
-    private int _renderedId;
+    private bool _painted;
+    private int _loadedRevision = -1;
+    private int _loadedId;
+
+    protected override bool ShouldRender() => !_painted;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_painted)
+            await LoadAsync();
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (ContractId == 0 || (_renderedId == ContractId && _renderedRevision == Revision))
+        if (!firstRender)
             return;
 
-        _renderedId = ContractId;
-        _renderedRevision = Revision;
+        _painted = true;
+        await LoadAsync();
+    }
+
+    public Task<bool> WasEditedAsync() =>
+        JavaScript.InvokeAsync<bool>("leaseDeskPreview.wasEdited", _hostId).AsTask();
+
+    public Task MarkCleanAsync() =>
+        JavaScript.InvokeVoidAsync("leaseDeskPreview.markClean", _hostId).AsTask();
+
+    public Task<string> ReadHtmlAsync() =>
+        JavaScript.InvokeAsync<string>("leaseDeskPreview.read", _hostId).AsTask();
+
+    private async Task LoadAsync()
+    {
+        if (ContractId == 0 || (_loadedId == ContractId && _loadedRevision == Revision))
+            return;
+
+        _loadedId = ContractId;
+        _loadedRevision = Revision;
         await JavaScript.InvokeVoidAsync(
             "leaseDeskPreview.render",
             _hostId,
-            $"/contracts/{ContractId}/pdf",
-            $"/contracts/{ContractId}/word?preview=true");
+            $"/contracts/{ContractId}/word?preview=true",
+            string.IsNullOrWhiteSpace(PageHtml) ? null : PageHtml);
     }
 }

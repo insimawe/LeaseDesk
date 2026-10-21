@@ -1,57 +1,59 @@
 :root,
 [data-bs-theme="light"] {
-    --app-primary: #f47b20;
-    --app-primary-dark: #d4630c;
-    --app-blue: #1a56b0;
-    --app-blue-dark: #143f86;
-    --app-heading: #1a2744;
-    --app-sidebar: var(--app-blue);
-    --app-header: var(--app-blue);
-    --app-bg: #f6f7f9;
-    --app-surface: #ffffff;
-    --app-text: #1a2744;
-    --app-text-muted: #5c6b80;
-    --app-border: #e4e8ee;
+    --app-primary: #3d6b5a;
+    --app-primary-dark: #2c5244;
+    --app-on-primary: #fff;
+    --app-heading: #1e2a3a;
+    --app-sidebar: #f7f4ee;
+    --app-header: #f7f4ee;
+    --app-bg: #efeae2;
+    --app-surface: #fffcf8;
+    --app-text: #1e2a3a;
+    --app-text-muted: #6d675f;
+    --app-border: #e3dcd2;
+    --app-nav-active: rgba(61, 107, 90, .12);
+    --app-desk: #d5cfc4;
     --app-header-height: 64px;
-    --app-sidebar-width: 240px;
+    --app-sidebar-width: 228px;
     --app-sidebar-collapsed: 72px;
     --bs-body-font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --bs-body-color: var(--app-text);
     --bs-body-bg: var(--app-bg);
     --bs-emphasis-color: var(--app-text);
-    --bs-primary: var(--app-primary-dark);
-    --bs-primary-rgb: 212, 99, 12;
+    --bs-primary: var(--app-primary);
+    --bs-primary-rgb: 61, 107, 90;
     --bs-link-color: var(--app-primary-dark);
-    --bs-link-hover-color: #a84c08;
+    --bs-link-hover-color: #1e3d33;
     --bs-border-color: var(--app-border);
     --bs-secondary-color: var(--app-text-muted);
     color-scheme: light;
 }
 
 [data-bs-theme="dark"] {
-    --app-primary: #ff8a33;
-    --app-primary-dark: #f47b20;
-    --app-blue: #10294f;
-    --app-blue-dark: #0c1e3b;
-    --app-heading: #f4f7fb;
-    --app-sidebar: #0e213f;
-    --app-header: #0e213f;
-    --app-bg: #121820;
-    --app-surface: #1c2633;
-    --app-text: #f4f7fb;
-    --app-text-muted: #b7c3d1;
-    --app-border: #314056;
+    --app-primary: #8fbfa8;
+    --app-primary-dark: #b7d7c8;
+    --app-on-primary: #14201c;
+    --app-heading: #f6f3ee;
+    --app-sidebar: #1a1f25;
+    --app-header: #1a1f25;
+    --app-bg: #12161b;
+    --app-surface: #222830;
+    --app-text: #f3efe8;
+    --app-text-muted: #b0a89e;
+    --app-border: #343c46;
+    --app-nav-active: rgba(143, 191, 168, .16);
+    --app-desk: #2a3036;
     --bs-body-color: var(--app-text);
     --bs-body-bg: var(--app-bg);
     --bs-emphasis-color: var(--app-text);
     --bs-primary: var(--app-primary);
-    --bs-primary-rgb: 255, 138, 51;
+    --bs-primary-rgb: 143, 191, 168;
     --bs-link-color: var(--app-primary);
-    --bs-link-hover-color: #ffb070;
+    --bs-link-hover-color: var(--app-primary-dark);
     --bs-border-color: var(--app-border);
     --bs-secondary-color: var(--app-text-muted);
     --bs-secondary-bg: var(--app-surface);
-    --bs-tertiary-bg: #243140;
+    --bs-tertiary-bg: #2a313a;
     color-scheme: dark;
 }
 
@@ -59,6 +61,7 @@ body {
     background: var(--app-bg);
     color: var(--app-text);
     font-size: 14px;
+    overflow-x: hidden;
 }
 
 a {
@@ -70,16 +73,16 @@ a:hover {
 }
 
 .btn-primary {
-    --bs-btn-color: #1a2744;
+    --bs-btn-color: var(--app-on-primary);
     --bs-btn-bg: var(--app-primary);
     --bs-btn-border-color: var(--app-primary);
-    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-color: var(--app-on-primary);
     --bs-btn-hover-bg: var(--app-primary-dark);
     --bs-btn-hover-border-color: var(--app-primary-dark);
-    --bs-btn-active-color: #fff;
+    --bs-btn-active-color: var(--app-on-primary);
     --bs-btn-active-bg: var(--app-primary-dark);
     --bs-btn-active-border-color: var(--app-primary-dark);
-    --bs-btn-disabled-color: #1a2744;
+    --bs-btn-disabled-color: var(--app-on-primary);
     --bs-btn-disabled-bg: var(--app-primary);
     --bs-btn-disabled-border-color: var(--app-primary);
     font-weight: 600;
@@ -96,7 +99,7 @@ a:hover {
     display: flex;
     height: var(--app-header-height);
     background: var(--app-header);
-    box-shadow: 0 1px 0 rgba(16, 41, 79, .18);
+    border-bottom: 1px solid var(--app-border);
 }
 
 .app-brand {
@@ -104,25 +107,24 @@ a:hover {
     align-items: center;
     width: var(--app-sidebar-width);
     height: var(--app-header-height);
-    padding: 0 20px;
-    color: #fff;
+    padding: 0 18px;
+    color: var(--app-heading);
     font-size: 17px;
-    font-weight: 700;
-    letter-spacing: 0;
+    font-weight: 650;
+    letter-spacing: -0.02em;
 }
 
 .app-brand:hover,
 .app-brand:focus {
-    color: #fff;
-    background: var(--app-blue-dark);
+    color: var(--app-heading);
+    background: transparent;
 }
 
 .app-logo {
     width: 40px;
     height: 40px;
-    border-radius: 50%;
+    border-radius: 10px;
     object-fit: cover;
-    background: #fff;
 }
 
 .app-brand span {
@@ -140,13 +142,13 @@ a:hover {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    color: #fff;
+    color: var(--app-text-muted);
     text-decoration: none;
 }
 
 .app-theme-toggle:hover,
 .app-theme-toggle:focus {
-    color: var(--app-primary);
+    color: var(--app-primary-dark);
 }
 
 .app-nav-toggle {
@@ -156,15 +158,15 @@ a:hover {
     padding: 0;
     border: 0;
     border-radius: 0;
-    color: #dce8f2;
+    color: var(--app-text);
     font-size: 22px;
     text-decoration: none;
 }
 
 .app-nav-toggle:hover,
 .app-nav-toggle:focus {
-    color: #fff;
-    background: rgba(244, 123, 32, .22);
+    color: var(--app-heading);
+    background: var(--app-nav-active);
 }
 
 .app-sidebar {
@@ -175,6 +177,7 @@ a:hover {
     z-index: 1025;
     width: var(--app-sidebar-width);
     background: var(--app-sidebar);
+    border-right: 1px solid var(--app-border);
     transition: width 180ms ease, transform 180ms ease;
 }
 
@@ -191,7 +194,7 @@ a:hover {
     margin: 2px 10px;
     padding: 10px 12px;
     border-radius: 9px;
-    color: #dce8f2;
+    color: var(--app-text);
 }
 
 .app-menu a .bi {
@@ -204,8 +207,8 @@ a:hover {
 .app-menu a:hover,
 .app-menu a:focus,
 .app-menu a.active {
-    color: #fff;
-    background: rgba(244, 123, 32, .22);
+    color: var(--app-heading);
+    background: var(--app-nav-active);
 }
 
 .app-menu a.active {
@@ -256,7 +259,74 @@ a:hover {
     align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
-    margin-bottom: 18px;
+    margin-bottom: 12px;
+}
+
+.page-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+    padding: 8px 10px;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+}
+
+.page-tools select {
+    width: auto;
+    max-width: 168px;
+    height: 32px;
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: 13px;
+}
+
+.page-tools .tool-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--app-text);
+}
+
+.page-tools .tool-btn:hover,
+.page-tools .tool-btn:focus-visible {
+    background: var(--app-bg);
+    border-color: var(--app-border);
+}
+
+.page-tools input[type="color"] {
+    width: 32px;
+    height: 32px;
+    padding: 3px;
+    border: 1px solid var(--app-border);
+    border-radius: 6px;
+    background: var(--app-surface);
+}
+
+.page-tools .tool-gap {
+    width: 1px;
+    align-self: stretch;
+    margin: 4px;
+    background: var(--app-border);
+}
+
+.page-tools .tool-note {
+    flex: 1 0 100%;
+    margin: 2px 0 0;
+    color: var(--app-text-muted);
+    font-size: 12px;
+}
+
+.page-tools .tool-rebuild {
+    margin-left: auto;
 }
 
 .page-header h1 {
@@ -277,7 +347,23 @@ a:hover {
     color: var(--app-text);
     border: 1px solid var(--app-border);
     border-radius: 14px;
-    box-shadow: 0 10px 30px rgba(16, 41, 79, .06);
+    box-shadow: 0 8px 24px rgba(30, 42, 58, .04);
+}
+
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--app-text);
+    --bs-table-hover-bg: var(--app-nav-active);
+    --bs-table-hover-color: var(--app-text);
+    --bs-table-border-color: var(--app-border);
+}
+
+.table thead th {
+    color: var(--app-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .03em;
+    text-transform: uppercase;
 }
 
 .page-empty {
@@ -310,21 +396,47 @@ a:hover {
 
 .studio {
     display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
+    grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
     gap: 16px;
-    height: calc(100vh - var(--app-header-height) - 108px);
+    height: calc(100vh - var(--app-header-height) - 196px);
     min-height: 520px;
+    min-width: 0;
 }
 
 .studio-pages {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     min-height: 0;
     overflow: auto;
-    background: #525659;
-    border-radius: 8px;
+    background: var(--app-desk);
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+}
+
+.studio-pages .docx-wrapper {
+    box-sizing: border-box;
+    width: max-content;
+    min-width: 100%;
+    margin-inline: auto;
+    background: transparent;
+    padding: 24px 16px 40px;
+    align-items: center;
+}
+
+.studio-pages .docx-wrapper > section.docx {
+    margin-bottom: 20px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .28);
+    cursor: text;
+}
+
+.studio-pages .docx-wrapper > section.docx:focus {
+    outline: 2px solid rgba(61, 107, 90, .55);
+    outline-offset: 4px;
 }
 
 .studio-pages.is-loading {
-    background: #525659;
+    background: var(--app-desk);
 }
 
 .studio-frame {
@@ -332,12 +444,12 @@ a:hover {
     height: 100%;
     min-height: 70vh;
     border: 0;
-    background: #525659;
+    background: var(--app-desk);
 }
 
 .studio-note {
     margin: 24px;
-    color: #fff;
+    color: var(--app-text);
 }
 
 .studio-form {
@@ -353,17 +465,6 @@ a:hover {
     margin-bottom: 12px;
 }
 
-@media (max-width: 991.98px) {
-    .studio {
-        grid-template-columns: 1fr;
-        height: auto;
-    }
-
-    .studio-pages {
-        height: 70vh;
-    }
-}
-
 .contract-sheet p {
     margin-bottom: 0.8rem;
     white-space: pre-wrap;
@@ -376,7 +477,79 @@ a:hover {
     font-size: 28px;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 992px) and (max-width: 1199.98px) {
+    .studio {
+        grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+        height: calc(100vh - var(--app-header-height) - 220px);
+    }
+}
+
+@media (max-width: 991.98px) {
+    .app-nav-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        order: -1;
+    }
+
+    .app-brand {
+        width: auto;
+        min-width: 0;
+        flex: 1;
+        padding-right: 8px;
+    }
+
+    .app-sidebar {
+        width: min(280px, calc(100vw - 48px));
+        transform: translateX(-105%);
+        visibility: hidden;
+    }
+
+    .app-shell.is-mobile-open .app-sidebar {
+        transform: translateX(0);
+        visibility: visible;
+    }
+
+    .app-sidebar-edge {
+        display: none;
+    }
+
+    .app-shell.is-mobile-open .app-backdrop {
+        display: block;
+        position: fixed;
+        inset: var(--app-header-height) 0 0;
+        z-index: 1020;
+        margin: 0;
+        border: 0;
+        background: rgba(30, 42, 58, .4);
+    }
+
+    .app-content,
+    .app-footer {
+        margin-left: 0;
+    }
+
+    .app-content {
+        padding-right: max(14px, env(safe-area-inset-right));
+        padding-left: max(14px, env(safe-area-inset-left));
+    }
+
+    .studio {
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: 0;
+    }
+
+    .studio-pages {
+        height: min(68vh, 720px);
+    }
+
+    .studio-form {
+        overflow: visible;
+    }
+}
+
+@media (min-width: 992px) {
     .app-shell.is-collapsed .app-brand,
     .app-shell.is-collapsed .app-sidebar {
         width: var(--app-sidebar-collapsed);
@@ -413,54 +586,96 @@ a:hover {
     }
 }
 
-@media (max-width: 767px) {
-    .app-brand {
+@media (max-width: 767.98px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .page-header h1 {
+        font-size: 22px;
+    }
+
+    .page-header h1 small {
+        display: block;
+        margin: 2px 0 0;
+    }
+
+    .page-header > .btn,
+    .page-header > a.btn {
+        align-self: stretch;
+        text-align: center;
+    }
+
+    .page-tools .tool-rebuild {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .contract-table thead {
         display: none;
     }
 
-    .app-nav-toggle {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
+    .contract-table,
+    .contract-table tbody,
+    .contract-table tr,
+    .contract-table td {
+        display: block;
+        width: 100%;
     }
 
+    .contract-table tr {
+        padding: 12px 14px 10px;
+        border-bottom: 1px solid var(--app-border);
+    }
+
+    .contract-table td {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 5px 0;
+        border: 0;
+        text-align: right;
+    }
+
+    .contract-table td::before {
+        content: attr(data-label);
+        flex: 0 0 auto;
+        color: var(--app-text-muted);
+        font-size: 12px;
+        font-weight: 600;
+        text-align: left;
+    }
+
+    .contract-table td.actions {
+        justify-content: flex-end;
+        padding-top: 8px;
+    }
+
+    .contract-table td.actions::before {
+        content: none;
+    }
+
+    .contract-table .btn-icon {
+        width: 36px;
+        height: 36px;
+    }
+}
+
+@media (max-width: 575.98px) {
     .app-theme-toggle span {
         display: none;
     }
 
-    .app-sidebar {
-        width: var(--app-sidebar-width);
-        transform: translateX(-100%);
-        visibility: hidden;
+    .app-brand span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
-    .app-shell.is-mobile-open .app-sidebar {
-        transform: translateX(0);
-        visibility: visible;
-    }
-
-    .app-sidebar-edge {
-        display: none;
-    }
-
-    .app-shell.is-mobile-open .app-backdrop {
-        display: block;
-        position: fixed;
-        inset: var(--app-header-height) 0 0;
-        z-index: 1020;
-        margin: 0;
-        border: 0;
-        background: rgba(20, 42, 74, .4);
-    }
-
-    .app-content,
-    .app-footer {
-        margin-left: 0;
-    }
-
-    .app-content {
-        padding-right: 14px;
-        padding-left: 14px;
+    .modal-dialog {
+        margin: 12px;
     }
 }
 

@@ -60,6 +60,9 @@ namespace LeaseDesk.Data.Migrations
                     b.Property<decimal>("MonthlyRent")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PageHtml")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("PostDatedCheckCount")
                         .HasColumnType("INTEGER");
 

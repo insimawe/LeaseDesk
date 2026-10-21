@@ -3,13 +3,14 @@
 @page "/contracts/{Id:int}/preview"
 @inject LeaseContractService Contracts
 @inject NavigationManager Navigation
+@inject IJSRuntime JavaScript
 
 <PageTitle>@(IsNew ? "New contract" : "Edit contract")</PageTitle>
 
 <section class="page-header">
     <div>
         <h1>@(IsNew ? "New contract" : "Edit contract") <small class="text-muted">Horizon lease</small></h1>
-        <p class="text-muted mb-0">Fill in the parts that change for this deal. The clause wording stays in the contract file.</p>
+        <p class="text-muted mb-0">@(IsNew ? "Fill in the parts that change for this deal. The clause wording stays in the contract file." : "Change the fields, or click the page to edit the wording, fonts, and layout.")</p>
     </div>
     <a class="btn btn-outline-secondary" href="/">Back to contracts</a>
 </section>
@@ -23,10 +24,85 @@
 }
 else if (Contract is not null)
 {
+    @if (!IsNew)
+    {
+        <div class="page-tools" aria-label="Page formatting">
+            <button type="button" class="tool-btn" data-command="undo" title="Undo" aria-label="Undo"><i class="bi bi-arrow-counterclockwise"></i></button>
+            <button type="button" class="tool-btn" data-command="redo" title="Redo" aria-label="Redo"><i class="bi bi-arrow-clockwise"></i></button>
+            <span class="tool-gap"></span>
+            <select data-command="formatBlock" aria-label="Style">
+                <option value="" disabled selected>Style</option>
+                <option value="p">Normal</option>
+                <option value="h1">Heading 1</option>
+                <option value="h2">Heading 2</option>
+                <option value="h3">Heading 3</option>
+            </select>
+            <select data-command="fontName" aria-label="Font">
+                <option value="" disabled selected>Font</option>
+                <option>Times New Roman</option>
+                <option>Georgia</option>
+                <option>Garamond</option>
+                <option>Cambria</option>
+                <option>Calibri</option>
+                <option>Arial</option>
+                <option>Tahoma</option>
+                <option>Courier New</option>
+            </select>
+            <select data-command="fontSize" aria-label="Font size">
+                <option value="" disabled selected>Size</option>
+                <option value="10pt">10</option>
+                <option value="11pt">11</option>
+                <option value="12pt">12</option>
+                <option value="14pt">14</option>
+                <option value="16pt">16</option>
+                <option value="18pt">18</option>
+                <option value="20pt">20</option>
+                <option value="24pt">24</option>
+                <option value="28pt">28</option>
+                <option value="32pt">32</option>
+            </select>
+            <button type="button" class="tool-btn" data-command="bold" title="Bold" aria-label="Bold"><i class="bi bi-type-bold"></i></button>
+            <button type="button" class="tool-btn" data-command="italic" title="Italic" aria-label="Italic"><i class="bi bi-type-italic"></i></button>
+            <button type="button" class="tool-btn" data-command="underline" title="Underline" aria-label="Underline"><i class="bi bi-type-underline"></i></button>
+            <input type="color" data-command="foreColor" value="#1a2744" title="Font color" aria-label="Font color" />
+            <button type="button" class="tool-btn" data-command="removeFormat" title="Clear formatting" aria-label="Clear formatting"><i class="bi bi-eraser"></i></button>
+            <span class="tool-gap"></span>
+            <button type="button" class="tool-btn" data-command="justifyLeft" title="Align left" aria-label="Align left"><i class="bi bi-text-left"></i></button>
+            <button type="button" class="tool-btn" data-command="justifyCenter" title="Align center" aria-label="Align center"><i class="bi bi-text-center"></i></button>
+            <button type="button" class="tool-btn" data-command="justifyRight" title="Align right" aria-label="Align right"><i class="bi bi-text-right"></i></button>
+            <button type="button" class="tool-btn" data-command="justifyFull" title="Justify" aria-label="Justify"><i class="bi bi-justify"></i></button>
+            <button type="button" class="tool-btn" data-command="insertUnorderedList" title="Bullets" aria-label="Bullets"><i class="bi bi-list-ul"></i></button>
+            <button type="button" class="tool-btn" data-command="insertOrderedList" title="Numbering" aria-label="Numbering"><i class="bi bi-list-ol"></i></button>
+            <select data-command="lineHeight" aria-label="Line spacing">
+                <option value="" disabled selected>Spacing</option>
+                <option value="1">1.0</option>
+                <option value="1.15">1.15</option>
+                <option value="1.5">1.5</option>
+                <option value="2">2.0</option>
+            </select>
+            <span class="tool-gap"></span>
+            <select data-command="paper" aria-label="Paper size">
+                <option value="" disabled selected>Paper</option>
+                <option value="letter">Letter</option>
+                <option value="a4">A4</option>
+            </select>
+            <select data-command="margins" aria-label="Page margins">
+                <option value="" disabled selected>Margins</option>
+                <option value="narrow">Narrow</option>
+                <option value="normal">Normal</option>
+                <option value="wide">Wide</option>
+            </select>
+            <button type="button" class="btn btn-sm btn-outline-secondary tool-rebuild" @onclick="RebuildPageAsync">Rebuild from fields</button>
+            @if (!string.IsNullOrEmpty(Contract.PageHtml))
+            {
+                <p class="tool-note">This page keeps your wording. Rebuild from fields if the form should rewrite it.</p>
+            }
+        </div>
+    }
     <div class="@(IsNew ? null : "studio")">
         @if (!IsNew)
         {
-            <ContractPages ContractId="Contract.Id" Revision="_revision" />
+            <ContractPages @ref="_pages" ContractId="Contract.Id" Revision="_revision" PageHtml="@Contract.PageHtml" />
         }
         <div class="@(IsNew ? null : "studio-form")">
     @if (!string.IsNullOrWhiteSpace(_error))
@@ -226,6 +302,7 @@ else if (Contract is not null)
     public int? Id { get; set; }
 
     private LeaseContract? Contract { get; set; }
+    private ContractPages? _pages;
     private bool _missing;
     private bool _receiptEdited;
     private string? _error;
@@ -265,9 +342,29 @@ else if (Contract is not null)
 
     private void MarkReceiptEdited() => _receiptEdited = true;
 
-    private async Task SaveAsync()
+    private async Task RebuildPageAsync()
     {
         if (Contract is null)
+            return;
+
+        var confirmed = await JavaScript.InvokeAsync<bool>("confirm", "Replace the page with the wording from the form fields? Edits made on the page will be removed.");
+        if (!confirmed)
+            return;
+
+        Contract.PageHtml = null;
+        if (_pages is not null)
+            await _pages.MarkCleanAsync();
+        await SaveAsync(skipPageCapture: true);
+    }
+
+    private async Task SaveAsync() => await SaveAsync(skipPageCapture: false);
+
+    private async Task SaveAsync(bool skipPageCapture)
+    {
+        if (Contract is null)
+            return;
+
+        if (!skipPageCapture && !await CapturePageAsync())
             return;
 
         _error = null;
@@ -290,7 +387,30 @@ else if (Contract is not null)
             return;
         }
 
-        _revision++;
+        if (string.IsNullOrEmpty(Contract.PageHtml))
+            _revision++;
+        else if (_pages is not null)
+            await _pages.MarkCleanAsync();
+
         _saved = "Saved.";
+    }
+
+    private async Task<bool> CapturePageAsync()
+    {
+        if (Contract is null || _pages is null || !await _pages.WasEditedAsync())
+            return true;
+
+        var html = await _pages.ReadHtmlAsync();
+        if (string.IsNullOrWhiteSpace(html))
+            return true;
+        if (html.Length > 2_000_000)
+        {
+            _error = "The page is too large to save. Shorten it and try again.";
+            _saved = null;
+            return false;
+        }
+
+        Contract.PageHtml = html;
+        return true;
     }
 }

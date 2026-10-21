@@ -18,6 +18,13 @@ public class LeaseDocumentService
 
     public byte[] CreateWord(LeaseContract contract)
     {
+        if (!string.IsNullOrWhiteSpace(contract.PageHtml))
+        {
+            var edited = PageHtmlDocument.Create(contract.PageHtml);
+            if (edited.Length > 0)
+                return edited;
+        }
+
         if (!File.Exists(_templatePath))
             throw new InvalidOperationException("The Horizon lease template is missing.");
 
