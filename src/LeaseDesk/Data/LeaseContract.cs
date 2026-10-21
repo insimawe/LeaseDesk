@@ -122,6 +122,32 @@ public class LeaseContract
     [NotMapped]
     public decimal SecurityDepositAmount => MonthlyRent * SecurityDepositMonths;
 
+    public const string BlankPageHtml =
+        """
+        <div class="docx-wrapper"><section class="docx" data-origin="blank" style="width:794px;min-height:1123px;padding:96px;background:#ffffff;color:#1a2744;font-family:'Times New Roman',Times,serif;font-size:12pt;line-height:1.15;box-sizing:border-box;"><article><p><br></p></article></section></div>
+        """;
+
+    public bool IsCustomDocument =>
+        PageHtml?.Contains("data-origin=\"blank\"", StringComparison.Ordinal) == true;
+
+    public static LeaseContract CreateBlank()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        return new LeaseContract
+        {
+            StartDate = today,
+            TermYears = 1,
+            SigningDate = today,
+            ReceiptDate = today,
+            UnitType = "",
+            MaxOccupants = 1,
+            PostDatedCheckCount = 0,
+            AdvanceMonths = 0,
+            SecurityDepositMonths = 0,
+            PageHtml = BlankPageHtml
+        };
+    }
+
     public static LeaseContract CreateHorizonDefault()
     {
         var today = DateOnly.FromDateTime(DateTime.Today);

@@ -426,8 +426,65 @@ a:hover {
 
 .studio-pages .docx-wrapper > section.docx {
     margin-bottom: 20px;
+    background: #fff;
+    color: #1a2744;
+    box-sizing: border-box;
     box-shadow: 0 8px 24px rgba(0, 0, 0, .28);
     cursor: text;
+}
+
+.studio-pages section.docx article p,
+.studio-pages section.docx article h1,
+.studio-pages section.docx article h2,
+.studio-pages section.docx article h3 {
+    margin: 0 0 8px;
+}
+
+.studio-pages section.docx p[data-page-break] {
+    height: 0;
+    margin: 0;
+    overflow: hidden;
+}
+
+.start-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    max-width: 760px;
+}
+
+.start-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 20px;
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    background: var(--app-surface);
+    color: var(--app-text);
+    text-align: left;
+}
+
+.start-card .bi {
+    font-size: 28px;
+    color: var(--app-primary);
+}
+
+.start-card h2 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--app-heading);
+}
+
+.start-card p {
+    margin: 0;
+    color: var(--app-text-muted);
+}
+
+.start-card:hover,
+.start-card:focus-visible {
+    border-color: var(--app-primary);
 }
 
 .studio-pages .docx-wrapper > section.docx:focus {

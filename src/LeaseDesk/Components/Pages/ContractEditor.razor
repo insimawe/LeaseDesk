@@ -9,8 +9,8 @@
 
 <section class="page-header">
     <div>
-        <h1>@(IsNew ? "New contract" : "Edit contract") <small class="text-muted">Horizon lease</small></h1>
-        <p class="text-muted mb-0">@(IsNew ? "Fill in the parts that change for this deal. The clause wording stays in the contract file." : "Change the fields, or click the page to edit the wording, fonts, and layout.")</p>
+        <h1>@(IsNew ? "New contract" : "Edit contract") <small class="text-muted">@(Contract?.IsCustomDocument == true ? "Custom" : "Horizon lease")</small></h1>
+        <p class="text-muted mb-0">@(IsNew ? "Start from the Horizon lease, or from a blank page. After that, the page itself can be written and changed." : Contract?.IsCustomDocument == true ? "Click the page and type. Enter starts a new paragraph, and the toolbar changes fonts, lists, and layout." : "Horizon lease is only the starting format. Click the page to add or rewrite any clause. Enter starts a new paragraph.")</p>
     </div>
     <a class="btn btn-outline-secondary" href="/">Back to contracts</a>
 </section>
@@ -20,6 +20,21 @@
     <div class="alert alert-warning" role="alert">
         That contract does not exist.
         <a href="/">Return to the list.</a>
+    </div>
+}
+else if (IsNew)
+{
+    <div class="start-grid">
+        <button type="button" class="start-card" @onclick="StartHorizonAsync">
+            <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+            <h2>Horizon lease</h2>
+            <p>Open the lease format, then add, delete, or rewrite any clause on the page.</p>
+        </button>
+        <button type="button" class="start-card" @onclick="StartBlankAsync">
+            <i class="bi bi-file-earmark" aria-hidden="true"></i>
+            <h2>Blank page</h2>
+            <p>Start from an empty page and write the contract yourself, the same way you would in a document.</p>
+        </button>
     </div>
 }
 else if (Contract is not null)
@@ -73,6 +88,7 @@ else if (Contract is not null)
             <button type="button" class="tool-btn" data-command="justifyFull" title="Justify" aria-label="Justify"><i class="bi bi-justify"></i></button>
             <button type="button" class="tool-btn" data-command="insertUnorderedList" title="Bullets" aria-label="Bullets"><i class="bi bi-list-ul"></i></button>
             <button type="button" class="tool-btn" data-command="insertOrderedList" title="Numbering" aria-label="Numbering"><i class="bi bi-list-ol"></i></button>
+            <button type="button" class="tool-btn" data-command="pageBreak" title="Page break" aria-label="Page break"><i class="bi bi-file-break"></i></button>
             <select data-command="lineHeight" aria-label="Line spacing">
                 <option value="" disabled selected>Spacing</option>
                 <option value="1">1.0</option>
@@ -129,7 +145,7 @@ else if (Contract is not null)
         </div>
     }
 
-    <EditForm Model="Contract" OnValidSubmit="SaveAsync">
+    <EditForm EditContext="_editContext" OnSubmit="SaveAsync">
         <DataAnnotationsValidator />
         <ValidationSummary class="text-danger" />
 
@@ -302,6 +318,7 @@ else if (Contract is not null)
     public int? Id { get; set; }
 
     private LeaseContract? Contract { get; set; }
+    private EditContext _editContext = new(new LeaseContract());
     private ContractPages? _pages;
     private bool _missing;
     private bool _receiptEdited;
@@ -327,9 +344,22 @@ else if (Contract is not null)
         _missing = Contract is null;
         if (Contract is not null)
         {
+            _editContext = new EditContext(Contract);
             var computed = Contract.AdvanceAmount + Contract.SecurityDepositAmount;
             _receiptEdited = Contract.ReceiptAmount != computed;
         }
+    }
+
+    private async Task StartHorizonAsync()
+    {
+        var contract = await Contracts.SaveAsync(LeaseContract.CreateHorizonDefault());
+        Navigation.NavigateTo($"/contracts/{contract.Id}");
+    }
+
+    private async Task StartBlankAsync()
+    {
+        var contract = await Contracts.SaveAsync(LeaseContract.CreateBlank());
+        Navigation.NavigateTo($"/contracts/{contract.Id}");
     }
 
     private void SyncReceipt()
@@ -347,7 +377,7 @@ else if (Contract is not null)
         if (Contract is null)
             return;
 
-        var confirmed = await JavaScript.InvokeAsync<bool>("confirm", "Replace the page with the wording from the form fields? Edits made on the page will be removed.");
+        var confirmed = await JavaScript.InvokeAsync<bool>("confirm", "Replace the page with the Horizon lease wording from the form fields? Anything you added on the page will be removed.");
         if (!confirmed)
             return;
 
@@ -383,7 +413,7 @@ else if (Contract is not null)
 
         if (wasNew)
         {
-            Navigation.NavigateTo("/", replace: true);
+            Navigation.NavigateTo($"/contracts/{Contract.Id}");
             return;
         }
 
@@ -392,7 +422,10 @@ else if (Contract is not null)
         else if (_pages is not null)
             await _pages.MarkCleanAsync();
 
-        _saved = "Saved.";
+        var fieldsReady = Contract.IsCustomDocument || _editContext.Validate();
+        _saved = fieldsReady
+            ? "Saved."
+            : "The page was saved. Finish the highlighted fields before downloading.";
     }
 
     private async Task<bool> CapturePageAsync()

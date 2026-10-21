@@ -55,7 +55,7 @@
                     @foreach (var contract in _contracts)
                     {
                         <tr>
-                            <td data-label="Lessee">@contract.LesseeName</td>
+                            <td data-label="Lessee">@(string.IsNullOrWhiteSpace(contract.LesseeName) ? "Untitled" : contract.LesseeName)</td>
                             <td data-label="Lessor">@contract.LessorName</td>
                             <td data-label="Property">
                                 <span>
