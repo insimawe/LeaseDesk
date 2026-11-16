@@ -12,6 +12,9 @@
     [Parameter]
     public string? PageHtml { get; set; }
 
+    [Parameter]
+    public EventCallback Ready { get; set; }
+
     private readonly string _hostId = "lease-pages-" + Guid.NewGuid().ToString("N");
     private bool _painted;
     private int _loadedRevision = -1;
@@ -46,6 +49,9 @@
     public Task DownloadAsync(string url) =>
         JavaScript.InvokeVoidAsync("leaseDeskPreview.download", _hostId, url).AsTask();
 
+    public Task SyncFieldsAsync(IReadOnlyList<object> updates) =>
+        JavaScript.InvokeVoidAsync("leaseDeskPreview.syncFields", _hostId, updates).AsTask();
+
     private async Task LoadAsync()
     {
         if (ContractId == 0 || (_loadedId == ContractId && _loadedRevision == Revision))
@@ -58,5 +64,8 @@
             _hostId,
             $"/contracts/{ContractId}/word?preview=true",
             string.IsNullOrWhiteSpace(PageHtml) ? null : PageHtml);
+
+        if (Ready.HasDelegate)
+            await Ready.InvokeAsync();
     }
 }

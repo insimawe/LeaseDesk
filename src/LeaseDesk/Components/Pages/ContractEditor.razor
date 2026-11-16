@@ -115,16 +115,13 @@ else if (Contract is not null)
                 <option value="wide">Wide</option>
             </select>
             <button type="button" class="btn btn-sm btn-outline-secondary tool-rebuild" @onclick="RebuildPageAsync">Rebuild from fields</button>
-            @if (!string.IsNullOrEmpty(Contract.PageHtml))
-            {
-                <p class="tool-note">This page keeps your wording. Rebuild from fields if the form should rewrite it.</p>
-            }
+            <p class="tool-note">Form changes update matching values on the page. The page itself stays freely editable. Rebuild from fields only if the form should rewrite the whole lease.</p>
         </div>
     }
     <div class="@(IsNew ? null : "studio")">
         @if (!IsNew)
         {
-            <ContractPages @ref="_pages" ContractId="Contract.Id" Revision="_revision" PageHtml="@Contract.PageHtml" />
+            <ContractPages @ref="_pages" ContractId="Contract.Id" Revision="_revision" PageHtml="@Contract.PageHtml" Ready="OnPagesReadyAsync" />
         }
         <div class="@(IsNew ? null : "studio-form")">
     @if (!string.IsNullOrWhiteSpace(_error))
@@ -161,26 +158,26 @@ else if (Contract is not null)
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label">Lessor name</label>
-                        <InputText class="form-control" @bind-Value="Contract.LessorName" />
+                        <LiveInputText class="form-control" @bind-Value="Contract.LessorName" />
                         <ValidationMessage For="() => Contract.LessorName" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Representative <span class="text-muted">(optional)</span></label>
-                        <InputText class="form-control" @bind-Value="Contract.LessorRepresentative" />
+                        <LiveInputText class="form-control" @bind-Value="Contract.LessorRepresentative" />
                     </div>
                     <div class="col-12">
                         <label class="form-label">Lessor address</label>
-                        <InputText class="form-control" @bind-Value="Contract.LessorAddress" />
+                        <LiveInputText class="form-control" @bind-Value="Contract.LessorAddress" />
                         <ValidationMessage For="() => Contract.LessorAddress" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Lessee name</label>
-                        <InputText class="form-control" @bind-Value="Contract.LesseeName" />
+                        <LiveInputText class="form-control" @bind-Value="Contract.LesseeName" />
                         <ValidationMessage For="() => Contract.LesseeName" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Lessee address</label>
-                        <InputText class="form-control" @bind-Value="Contract.LesseeAddress" />
+                        <LiveInputText class="form-control" @bind-Value="Contract.LesseeAddress" />
                         <ValidationMessage For="() => Contract.LesseeAddress" />
                     </div>
                 </div>
@@ -193,27 +190,27 @@ else if (Contract is not null)
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label">Property</label>
-                        <InputText class="form-control" @bind-Value="Contract.PropertyName" />
+                        <LiveInputText class="form-control" @bind-Value="Contract.PropertyName" />
                         <ValidationMessage For="() => Contract.PropertyName" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Unit</label>
-                        <InputText class="form-control" @bind-Value="Contract.Unit" />
+                        <LiveInputText class="form-control" @bind-Value="Contract.Unit" />
                         <ValidationMessage For="() => Contract.Unit" />
                     </div>
                     <div class="col-12">
                         <label class="form-label">Property address</label>
-                        <InputText class="form-control" @bind-Value="Contract.PropertyAddress" />
+                        <LiveInputText class="form-control" @bind-Value="Contract.PropertyAddress" />
                         <ValidationMessage For="() => Contract.PropertyAddress" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Unit type</label>
-                        <InputText class="form-control" @bind-Value="Contract.UnitType" />
+                        <LiveInputText class="form-control" @bind-Value="Contract.UnitType" />
                         <ValidationMessage For="() => Contract.UnitType" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Maximum occupants</label>
-                        <InputNumber class="form-control" @bind-Value="Contract.MaxOccupants" />
+                        <LiveInputNumber class="form-control" @bind-Value="Contract.MaxOccupants" />
                         <ValidationMessage For="() => Contract.MaxOccupants" />
                     </div>
                 </div>
@@ -230,7 +227,7 @@ else if (Contract is not null)
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Term (years)</label>
-                        <InputNumber class="form-control" @bind-Value="Contract.TermYears" />
+                        <LiveInputNumber class="form-control" @bind-Value="Contract.TermYears" />
                         <ValidationMessage For="() => Contract.TermYears" />
                     </div>
                     <div class="col-md-4">
@@ -243,29 +240,29 @@ else if (Contract is not null)
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Signing place</label>
-                        <InputText class="form-control" @bind-Value="Contract.SigningPlace" />
+                        <LiveInputText class="form-control" @bind-Value="Contract.SigningPlace" />
                         <ValidationMessage For="() => Contract.SigningPlace" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Monthly rent</label>
-                        <InputNumber class="form-control" @bind-Value="Contract.MonthlyRent" @bind-Value:after="SyncReceipt" />
+                        <LiveInputNumber class="form-control" @bind-Value="Contract.MonthlyRent" />
                         <div class="form-text">@PesoWords.Format(Contract.MonthlyRent)</div>
                         <ValidationMessage For="() => Contract.MonthlyRent" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Post-dated checks</label>
-                        <InputNumber class="form-control" @bind-Value="Contract.PostDatedCheckCount" />
+                        <LiveInputNumber class="form-control" @bind-Value="Contract.PostDatedCheckCount" />
                         <ValidationMessage For="() => Contract.PostDatedCheckCount" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Advance (months)</label>
-                        <InputNumber class="form-control" @bind-Value="Contract.AdvanceMonths" @bind-Value:after="SyncReceipt" />
+                        <LiveInputNumber class="form-control" @bind-Value="Contract.AdvanceMonths" />
                         <div class="form-text">@PesoWords.FormatMoney(Contract.AdvanceAmount) — @PesoWords.Format(Contract.AdvanceAmount)</div>
                         <ValidationMessage For="() => Contract.AdvanceMonths" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Security deposit (months)</label>
-                        <InputNumber class="form-control" @bind-Value="Contract.SecurityDepositMonths" @bind-Value:after="SyncReceipt" />
+                        <LiveInputNumber class="form-control" @bind-Value="Contract.SecurityDepositMonths" />
                         <div class="form-text">@PesoWords.FormatMoney(Contract.SecurityDepositAmount) — @PesoWords.Format(Contract.SecurityDepositAmount)</div>
                         <ValidationMessage For="() => Contract.SecurityDepositMonths" />
                     </div>
@@ -279,7 +276,7 @@ else if (Contract is not null)
                 <div class="row g-3">
                     <div class="col-md-4">
                         <label class="form-label">Amount received</label>
-                        <InputNumber class="form-control" @bind-Value="Contract.ReceiptAmount" @bind-Value:after="MarkReceiptEdited" />
+                        <LiveInputNumber class="form-control" @bind-Value="Contract.ReceiptAmount" />
                         <div class="form-text">@PesoWords.Format(Contract.ReceiptAmount). Starts as advance plus deposit.</div>
                         <ValidationMessage For="() => Contract.ReceiptAmount" />
                     </div>
@@ -289,7 +286,7 @@ else if (Contract is not null)
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Payer</label>
-                        <InputText class="form-control" @bind-Value="Contract.ReceiptPayer" placeholder="Defaults to the lessee" />
+                        <LiveInputText class="form-control" @bind-Value="Contract.ReceiptPayer" placeholder="Defaults to the lessee" />
                     </div>
                 </div>
             </div>
@@ -301,12 +298,12 @@ else if (Contract is not null)
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label">First witness</label>
-                        <InputText class="form-control" @bind-Value="Contract.WitnessOneName" />
+                        <LiveInputText class="form-control" @bind-Value="Contract.WitnessOneName" />
                         <ValidationMessage For="() => Contract.WitnessOneName" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Second witness</label>
-                        <InputText class="form-control" @bind-Value="Contract.WitnessTwoName" />
+                        <LiveInputText class="form-control" @bind-Value="Contract.WitnessTwoName" />
                         <ValidationMessage For="() => Contract.WitnessTwoName" />
                     </div>
                 </div>
@@ -325,8 +322,10 @@ else if (Contract is not null)
     private LeaseContract? Contract { get; set; }
     private EditContext _editContext = new(new LeaseContract());
     private ContractPages? _pages;
+    private IReadOnlyList<LeaseDocumentService.FieldBinding>? _syncedFields;
     private bool _missing;
     private bool _receiptEdited;
+    private bool _pagesReady;
     private string? _error;
     private string? _saved;
     private int _revision;
@@ -338,6 +337,8 @@ else if (Contract is not null)
         _error = null;
         _saved = null;
         _receiptEdited = false;
+        _syncedFields = null;
+        _pagesReady = false;
 
         if (Id is null)
         {
@@ -349,10 +350,38 @@ else if (Contract is not null)
         _missing = Contract is null;
         if (Contract is not null)
         {
-            _editContext = new EditContext(Contract);
+            BindEditContext(Contract);
             var computed = Contract.AdvanceAmount + Contract.SecurityDepositAmount;
             _receiptEdited = Contract.ReceiptAmount != computed;
         }
+    }
+
+    private void BindEditContext(LeaseContract contract)
+    {
+        _editContext.OnFieldChanged -= OnContractFieldChanged;
+        _editContext = new EditContext(contract);
+        _editContext.OnFieldChanged += OnContractFieldChanged;
+    }
+
+    private async void OnContractFieldChanged(object? sender, FieldChangedEventArgs args)
+    {
+        if (Contract is null)
+            return;
+
+        var field = args.FieldIdentifier.FieldName;
+        if (field is nameof(LeaseContract.MonthlyRent)
+            or nameof(LeaseContract.AdvanceMonths)
+            or nameof(LeaseContract.SecurityDepositMonths))
+        {
+            SyncReceipt();
+        }
+        else if (field == nameof(LeaseContract.ReceiptAmount))
+        {
+            _receiptEdited = true;
+        }
+
+        await SyncPageFromFieldsAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task StartHorizonAsync()
@@ -375,7 +404,23 @@ else if (Contract is not null)
         Contract.ReceiptAmount = Contract.AdvanceAmount + Contract.SecurityDepositAmount;
     }
 
-    private void MarkReceiptEdited() => _receiptEdited = true;
+    private Task OnPagesReadyAsync()
+    {
+        _pagesReady = true;
+        _syncedFields = null;
+        return SyncPageFromFieldsAsync();
+    }
+
+    private async Task SyncPageFromFieldsAsync()
+    {
+        if (Contract is null || _pages is null || !_pagesReady || Contract.IsCustomDocument)
+            return;
+
+        var next = LeaseDocumentService.FieldBindings(Contract);
+        var updates = LeaseDocumentService.FieldUpdates(_syncedFields, next);
+        await _pages.SyncFieldsAsync(updates);
+        _syncedFields = next;
+    }
 
     private async Task RebuildPageAsync()
     {
@@ -387,6 +432,8 @@ else if (Contract is not null)
             return;
 
         Contract.PageHtml = null;
+        _syncedFields = null;
+        _pagesReady = false;
         if (_pages is not null)
             await _pages.MarkCleanAsync();
         await SaveAsync(skipPageCapture: true);

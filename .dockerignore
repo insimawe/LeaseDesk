@@ -1,0 +1,8 @@
+.git
+.vs
+**/.vs
+**/bin
+**/obj
+**/*.db
+**/*.user
+src/LeaseDesk/appsettings.Development.json

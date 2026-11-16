@@ -121,7 +121,9 @@ public class LeaseDocumentService
         return $"{stem}.{extension}";
     }
 
-    private static IReadOnlyList<(string Old, string New)> BuildReplacements(LeaseContract contract)
+    public readonly record struct FieldBinding(string Key, string Value);
+
+    public static IReadOnlyList<FieldBinding> FieldBindings(LeaseContract contract)
     {
         var rentWords = PesoWords.Format(contract.MonthlyRent);
         var rentNumber = PesoNumber(contract.MonthlyRent);
@@ -137,35 +139,76 @@ public class LeaseDocumentService
             : $"{contract.LessorName} with representative {representative}, of legal age, Filipino, and a resident at {contract.LessorAddress}.";
         var property = $"{contract.PropertyName}, {contract.Unit}, {contract.PropertyAddress}";
         var term = $"This lease commences on {LongDate(contract.StartDate)} and shall be in force for {CountPhrase(contract.TermYears)} years locked in until {LongDate(contract.EndDate)}";
-        var occupants = $"{contract.UnitType.ToLowerInvariant()} unit with a maximum of {CountPhrase(contract.MaxOccupants)} occupants";
+        var unitType = string.IsNullOrWhiteSpace(contract.UnitType) ? "unit" : contract.UnitType.Trim().ToLowerInvariant();
+        var occupants = $"{unitType} unit with a maximum of {CountPhrase(contract.MaxOccupants)} occupants";
         var advancePhrase = CountPhrase(contract.AdvanceMonths) + (contract.AdvanceMonths == 1 ? " month" : " months");
         var depositPhrase = $"({contract.SecurityDepositMonths}) months";
 
         return
         [
-            ("ALMA ORAPA with representative ANGELITA ORAPA, of legal age, Filipino, and a resident at Poblacion Pilar Bohol, Philippines.", lessorIntro),
-            ("GILBERTO ANTON MAGDUA MONTILLA, of legal age, Filipino, and resident at Purok Manga Guiwanon Baclayon Bohol, Philippines.",
-                $"{contract.LesseeName}, of legal age, Filipino, and resident at {contract.LesseeAddress}."),
-            ("Horizon 101, Tower 2, unit 34A, Mango Avenue Cebu City", property),
-            ("This lease commences on January 20,2026 and shall be in force for three (3) years locked in until January 20, 2029", term),
-            ("one (1) month advance rental of FIFTEEN THOUSAND PESOS (P15,000)",
-                $"{advancePhrase} advance rental of {advanceWords} (P{advanceNumber})"),
-            ("(2) months security deposit of THIRTY THOUSAND PESOS (P30,000)",
-                $"{depositPhrase} security deposit of {depositWords} (P{depositNumber})"),
-            ("FIFTEEN THOUSAND PESOS (PHP 15,000)", $"{rentWords} (PHP {rentNumber})"),
-            ("35 POST DATED CHECKS", $"{contract.PostDatedCheckCount} POST DATED CHECKS"),
-            ("studio unit with a maximum of three (3) occupants", occupants),
-            ("DONE this January 20th, 2026, in Cebu City, Cebu, Philippines.",
-                $"DONE this {OrdinalDate(contract.SigningDate)}, in {contract.SigningPlace}."),
-            ("ALMA ORAPA received thePAYMENT amounting (45,000.00) on January 6 2026, from GILBERTO ANTON MAGBUA MONTILLA",
-                $"{contract.LessorName} received the PAYMENT amounting ({receiptNumber}) on {ReceiptDate(contract.ReceiptDate)}, from {payer}"),
-            ("GILBERTO ANTON M. MONTILLA", contract.LesseeName),
-            ("GILBERTO ANTON MAGDUA MONTILLA", contract.LesseeName),
-            ("GILBERTO ANTON MAGBUA MONTILLA", payer),
-            ("MARIA TERESA AQUINO", contract.WitnessOneName),
-            ("ROSENDA AKUT", contract.WitnessTwoName),
-            ("ANGELITA ORAPA", representative),
-            ("ALMA ORAPA", contract.LessorName)
+            new("lessorIntro", lessorIntro),
+            new("lesseeParty", $"{contract.LesseeName}, of legal age, Filipino, and resident at {contract.LesseeAddress}."),
+            new("property", property),
+            new("term", term),
+            new("advanceRent", $"{advancePhrase} advance rental of {advanceWords} (P{advanceNumber})"),
+            new("securityDeposit", $"{depositPhrase} security deposit of {depositWords} (P{depositNumber})"),
+            new("monthlyRent", $"{rentWords} (PHP {rentNumber})"),
+            new("postDatedChecks", $"{contract.PostDatedCheckCount} POST DATED CHECKS"),
+            new("occupants", occupants),
+            new("signing", $"DONE this {OrdinalDate(contract.SigningDate)}, in {contract.SigningPlace}."),
+            new("receipt", $"{contract.LessorName} received the PAYMENT amounting ({receiptNumber}) on {ReceiptDate(contract.ReceiptDate)}, from {payer}"),
+            new("lesseeName", contract.LesseeName),
+            new("receiptPayer", payer),
+            new("witnessOne", contract.WitnessOneName),
+            new("witnessTwo", contract.WitnessTwoName),
+            new("representative", representative),
+            new("lessorName", contract.LessorName)
+        ];
+    }
+
+    public static IReadOnlyList<object> FieldUpdates(
+        IReadOnlyList<FieldBinding>? previous,
+        IReadOnlyList<FieldBinding> next)
+    {
+        var updates = new List<object>(next.Count);
+        for (var i = 0; i < next.Count; i++)
+        {
+            var from = previous is not null && i < previous.Count ? previous[i].Value : next[i].Value;
+            var to = next[i].Value;
+            if (previous is not null && from == to)
+                continue;
+
+            updates.Add(new { key = next[i].Key, from, to });
+        }
+
+        return updates;
+    }
+
+    private static IReadOnlyList<(string Old, string New)> BuildReplacements(LeaseContract contract)
+    {
+        var fields = FieldBindings(contract);
+        string Value(string key) => fields.First(field => field.Key == key).Value;
+
+        return
+        [
+            ("ALMA ORAPA with representative ANGELITA ORAPA, of legal age, Filipino, and a resident at Poblacion Pilar Bohol, Philippines.", Value("lessorIntro")),
+            ("GILBERTO ANTON MAGDUA MONTILLA, of legal age, Filipino, and resident at Purok Manga Guiwanon Baclayon Bohol, Philippines.", Value("lesseeParty")),
+            ("Horizon 101, Tower 2, unit 34A, Mango Avenue Cebu City", Value("property")),
+            ("This lease commences on January 20,2026 and shall be in force for three (3) years locked in until January 20, 2029", Value("term")),
+            ("one (1) month advance rental of FIFTEEN THOUSAND PESOS (P15,000)", Value("advanceRent")),
+            ("(2) months security deposit of THIRTY THOUSAND PESOS (P30,000)", Value("securityDeposit")),
+            ("FIFTEEN THOUSAND PESOS (PHP 15,000)", Value("monthlyRent")),
+            ("35 POST DATED CHECKS", Value("postDatedChecks")),
+            ("studio unit with a maximum of three (3) occupants", Value("occupants")),
+            ("DONE this January 20th, 2026, in Cebu City, Cebu, Philippines.", Value("signing")),
+            ("ALMA ORAPA received thePAYMENT amounting (45,000.00) on January 6 2026, from GILBERTO ANTON MAGBUA MONTILLA", Value("receipt")),
+            ("GILBERTO ANTON M. MONTILLA", Value("lesseeName")),
+            ("GILBERTO ANTON MAGDUA MONTILLA", Value("lesseeName")),
+            ("GILBERTO ANTON MAGBUA MONTILLA", Value("receiptPayer")),
+            ("MARIA TERESA AQUINO", Value("witnessOne")),
+            ("ROSENDA AKUT", Value("witnessTwo")),
+            ("ANGELITA ORAPA", Value("representative")),
+            ("ALMA ORAPA", Value("lessorName"))
         ];
     }
 

@@ -91,8 +91,134 @@ window.leaseDeskPreview = {
         link.click();
         link.remove();
         URL.revokeObjectURL(link.href);
+    },
+
+    syncFields: function (hostId, updates) {
+        const host = document.getElementById(hostId);
+        if (!host || !updates || !updates.length) return;
+
+        const ordered = updates.slice().sort(function (left, right) {
+            return String(right.from || "").length - String(left.from || "").length;
+        });
+
+        let changed = false;
+        ordered.forEach(function (update) {
+            const key = update.key;
+            const from = update.from == null ? "" : String(update.from);
+            const to = update.to == null ? "" : String(update.to);
+            if (!key) return;
+
+            const marks = host.querySelectorAll('[data-field="' + cssEscape(key) + '"]');
+            if (marks.length) {
+                if (from === to) return;
+                marks.forEach(function (mark) {
+                    if (mark.textContent === to) return;
+                    mark.textContent = to;
+                    changed = true;
+                });
+                return;
+            }
+
+            if (!from) return;
+            if (replaceFieldText(host, key, from, to))
+                changed = true;
+        });
+
+        if (!changed) return;
+        host.classList.add("is-edited");
+        scheduleReflow(host);
     }
 };
+
+function cssEscape(value) {
+    if (window.CSS && typeof window.CSS.escape === "function")
+        return window.CSS.escape(value);
+    return String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&");
+}
+
+function replaceFieldText(host, key, from, to) {
+    let changed = false;
+    while (from.length > 0) {
+        const nodes = fieldTextNodes(host);
+        if (!nodes.length) break;
+
+        let text = "";
+        const starts = [];
+        nodes.forEach(function (node) {
+            starts.push(text.length);
+            text += node.nodeValue || "";
+        });
+
+        const index = text.indexOf(from);
+        if (index < 0) break;
+        if (!wrapFieldRange(nodes, starts, index, from.length, key, to))
+            break;
+        changed = true;
+    }
+    return changed;
+}
+
+function fieldTextNodes(host) {
+    const nodes = [];
+    const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT, {
+        acceptNode: function (node) {
+            if (!node.nodeValue) return NodeFilter.FILTER_REJECT;
+            const parent = node.parentElement;
+            if (!parent) return NodeFilter.FILTER_REJECT;
+            if (parent.closest("style, script, [data-field], #lease-caret"))
+                return NodeFilter.FILTER_REJECT;
+            return NodeFilter.FILTER_ACCEPT;
+        }
+    });
+    let node;
+    while ((node = walker.nextNode()))
+        nodes.push(node);
+    return nodes;
+}
+
+function wrapFieldRange(nodes, starts, start, length, key, value) {
+    const end = start + length;
+    let first = null;
+    let prefix = "";
+    let suffix = "";
+    const covered = [];
+
+    for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        if (!node.isConnected) continue;
+        const nodeStart = starts[i];
+        const nodeEnd = nodeStart + (node.nodeValue || "").length;
+        if (nodeEnd <= start || nodeStart >= end) continue;
+
+        const localStart = Math.max(0, start - nodeStart);
+        const localEnd = Math.min(node.nodeValue.length, end - nodeStart);
+        if (!first) {
+            first = node;
+            prefix = node.nodeValue.slice(0, localStart);
+        }
+        if (nodeEnd >= end)
+            suffix = node.nodeValue.slice(localEnd);
+        covered.push(node);
+    }
+
+    if (!first || !first.parentNode) return false;
+
+    const mark = document.createElement("span");
+    mark.setAttribute("data-field", key);
+    mark.textContent = value;
+
+    const parent = first.parentNode;
+    if (prefix)
+        parent.insertBefore(document.createTextNode(prefix), first);
+    parent.insertBefore(mark, first);
+    if (suffix)
+        parent.insertBefore(document.createTextNode(suffix), first);
+
+    covered.forEach(function (node) {
+        if (node.isConnected) node.remove();
+    });
+    return true;
+}
 
 function fileName(response) {
     const header = response.headers.get("Content-Disposition") || "";
