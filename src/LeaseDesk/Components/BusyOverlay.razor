@@ -1,0 +1,11 @@
+<div class="busy-overlay" role="status" aria-live="assertive" aria-busy="true">
+    <div class="busy-overlay-card">
+        <div class="spinner-border text-primary" aria-hidden="true"></div>
+        <span>@Message</span>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Message { get; set; } = "Working...";
+}

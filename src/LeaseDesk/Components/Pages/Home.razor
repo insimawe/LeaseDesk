@@ -14,6 +14,11 @@
     </a>
 </section>
 
+@if (_busyMessage is not null)
+{
+    <BusyOverlay Message="@_busyMessage" />
+}
+
 @if (!string.IsNullOrWhiteSpace(_error))
 {
     <div class="alert alert-danger" role="alert">@_error</div>
@@ -114,8 +119,8 @@
                     </p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelDelete">Cancel</button>
-                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteAsync">Delete</button>
+                    <button type="button" class="btn btn-outline-secondary" disabled="@(_busyMessage is not null)" @onclick="CancelDelete">Cancel</button>
+                    <button type="button" class="btn btn-danger" disabled="@(_busyMessage is not null)" @onclick="ConfirmDeleteAsync">Delete</button>
                 </div>
             </div>
         </div>
@@ -137,6 +142,7 @@
 @code {
     private string _query = "";
     private string? _error;
+    private string? _busyMessage;
     private bool _hasAny;
     private IReadOnlyList<LeaseContract> _contracts = [];
     private LeaseContract? _pendingDelete;
@@ -221,12 +227,22 @@
 
     private async Task ConfirmDeleteAsync()
     {
-        if (_pendingDelete is null)
+        if (_pendingDelete is null || _busyMessage is not null)
             return;
 
         var id = _pendingDelete.Id;
         _pendingDelete = null;
-        await Contracts.DeleteAsync(id);
-        await LoadAsync();
+        _busyMessage = "Deleting contract...";
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
+        try
+        {
+            await Contracts.DeleteAsync(id);
+            await LoadAsync();
+        }
+        finally
+        {
+            _busyMessage = null;
+        }
     }
 }

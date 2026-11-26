@@ -22,11 +22,21 @@
     <div class="page-actions">
         @if (Editing)
         {
-            <button type="submit" form="contract-form" class="btn btn-primary">Save</button>
+            <button type="submit"
+                    form="contract-form"
+                    class="btn btn-primary"
+                    disabled="@(_busyMessage is not null)">
+                Save
+            </button>
         }
         <a class="btn btn-outline-secondary" href="/">Back to contracts</a>
     </div>
 </section>
+
+@if (_busyMessage is not null)
+{
+    <BusyOverlay Message="@_busyMessage" />
+}
 
 @if (_missing)
 {
@@ -349,6 +359,7 @@ else if (Contract is not null)
     private int _justSavedId;
     private string? _error;
     private string? _saved;
+    private string? _busyMessage;
     private int _revision;
 
     private bool ChoosingTemplate => Id is null && !_composing;
@@ -547,42 +558,52 @@ else if (Contract is not null)
 
     private async Task SaveAsync(bool skipPageCapture)
     {
-        if (Contract is null)
+        if (Contract is null || _busyMessage is not null)
             return;
 
-        if (!skipPageCapture && !await CapturePageAsync())
-            return;
-
-        _error = null;
-        _saved = null;
         var wasNew = Contract.Id == 0;
-
+        _busyMessage = wasNew ? "Creating contract..." : "Saving changes...";
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
         try
         {
-            await Contracts.SaveAsync(Contract);
+            if (!skipPageCapture && !await CapturePageAsync())
+                return;
+
+            _error = null;
+            _saved = null;
+
+            try
+            {
+                await Contracts.SaveAsync(Contract);
+            }
+            catch (InvalidOperationException exception)
+            {
+                _error = exception.Message;
+                return;
+            }
+
+            if (wasNew)
+            {
+                _justSavedId = Contract.Id;
+                Navigation.NavigateTo($"/contracts/{Contract.Id}");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(Contract.PageHtml))
+                _revision++;
+            else if (_pages is not null)
+                await _pages.MarkCleanAsync();
+
+            var fieldsReady = Contract.IsCustomDocument || _editContext.Validate();
+            _saved = fieldsReady
+                ? "Saved."
+                : "The page was saved. Finish the highlighted fields before downloading.";
         }
-        catch (InvalidOperationException exception)
+        finally
         {
-            _error = exception.Message;
-            return;
+            _busyMessage = null;
         }
-
-        if (wasNew)
-        {
-            _justSavedId = Contract.Id;
-            Navigation.NavigateTo($"/contracts/{Contract.Id}");
-            return;
-        }
-
-        if (string.IsNullOrEmpty(Contract.PageHtml))
-            _revision++;
-        else if (_pages is not null)
-            await _pages.MarkCleanAsync();
-
-        var fieldsReady = Contract.IsCustomDocument || _editContext.Validate();
-        _saved = fieldsReady
-            ? "Saved."
-            : "The page was saved. Finish the highlighted fields before downloading.";
     }
 
     private async Task<bool> CapturePageAsync()
