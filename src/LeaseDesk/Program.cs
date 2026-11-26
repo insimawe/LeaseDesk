@@ -39,8 +39,6 @@ app.MapGet("/contracts/{id:int}/word", async (int id, bool? preview, LeaseContra
     var contract = await contracts.GetAsync(id);
     if (contract is null)
         return Results.NotFound();
-    if (preview != true && LeaseDocumentService.MissingFields(contract).Count > 0)
-        return Results.BadRequest("Fill in the missing details before downloading.");
 
     var bytes = documents.CreateWord(contract);
     return Results.File(
@@ -54,8 +52,6 @@ app.MapPost("/contracts/{id:int}/word", async (int id, bool pages, HttpRequest r
     var contract = await contracts.GetAsync(id);
     if (contract is null)
         return Results.NotFound();
-    if (LeaseDocumentService.MissingFields(contract).Count > 0)
-        return Results.BadRequest("Fill in the missing details before downloading.");
 
     var bytes = documents.CreateWord(contract);
     if (pages)
@@ -78,8 +74,6 @@ app.MapPost("/contracts/{id:int}/pdf", async (int id, HttpRequest request, Lease
     var contract = await contracts.GetAsync(id);
     if (contract is null)
         return Results.NotFound();
-    if (LeaseDocumentService.MissingFields(contract).Count > 0)
-        return Results.BadRequest("Fill in the missing details before downloading.");
 
     using var reader = new StreamReader(request.Body);
     var html = await reader.ReadToEndAsync();

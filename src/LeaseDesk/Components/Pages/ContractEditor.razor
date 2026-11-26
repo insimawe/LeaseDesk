@@ -148,32 +148,18 @@ else if (Contract is not null)
         <div class="alert alert-success" role="status">@_saved</div>
     }
     <div class="studio-toolbar">
-        @{
-            var gaps = LeaseDocumentService.MissingFields(Contract);
-        }
-        @if (Contract.Id != 0 && gaps.Count == 0)
-        {
-            <button type="button" class="btn btn-sm btn-print" @onclick="PrintAsync" title="Print contract" aria-label="Print contract">
-                <i class="bi bi-printer" aria-hidden="true"></i>
-                Print
-            </button>
-            <button type="button" class="btn btn-sm btn-word" @onclick="DownloadWordAsync" title="Download Word document" aria-label="Download Word document">
-                <i class="bi bi-file-earmark-word" aria-hidden="true"></i>
-                Word
-            </button>
-            <button type="button" class="btn btn-sm btn-pdf" @onclick="DownloadPdfAsync" title="Download PDF" aria-label="Download PDF">
-                <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
-                PDF
-            </button>
-        }
-        else if (gaps.Count > 0)
-        {
-            <span class="text-muted small">Fill in @string.Join(", ", gaps) before printing or downloading.</span>
-        }
-        else
-        {
-            <span class="text-muted small">Save the contract before printing or downloading.</span>
-        }
+        <button type="button" class="btn btn-sm btn-print" @onclick="PrintAsync" disabled="@(_busyMessage is not null)" title="Print contract" aria-label="Print contract">
+            <i class="bi bi-printer" aria-hidden="true"></i>
+            Print
+        </button>
+        <button type="button" class="btn btn-sm btn-word" @onclick="DownloadWordAsync" disabled="@(_busyMessage is not null)" title="Download Word document" aria-label="Download Word document">
+            <i class="bi bi-file-earmark-word" aria-hidden="true"></i>
+            Word
+        </button>
+        <button type="button" class="btn btn-sm btn-pdf" @onclick="DownloadPdfAsync" disabled="@(_busyMessage is not null)" title="Download PDF" aria-label="Download PDF">
+            <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
+            PDF
+        </button>
     </div>
 
     <EditForm id="contract-form" EditContext="_editContext" OnSubmit="SaveAsync">
@@ -410,10 +396,9 @@ else if (Contract is not null)
             return;
 
         _justSavedId = 0;
-        var fieldsReady = Contract.IsCustomDocument || _editContext.Validate();
-        _saved = fieldsReady
-            ? "Saved."
-            : "The page was saved. Finish the highlighted fields before downloading.";
+        if (!Contract.IsCustomDocument)
+            _editContext.Validate();
+        _saved = "Saved.";
     }
 
     private void BindEditContext(LeaseContract contract)
@@ -538,18 +523,65 @@ else if (Contract is not null)
         await SaveAsync(skipPageCapture: true);
     }
 
-    private async Task DownloadWordAsync()
+    private Task DownloadWordAsync() => ExportAsync(pdf: false);
+
+    private Task DownloadPdfAsync() => ExportAsync(pdf: true);
+
+    private async Task ExportAsync(bool pdf)
     {
-        if (Contract is null || _pages is null)
+        if (Contract is null || _pages is null || _busyMessage is not null)
             return;
 
-        await _pages.DownloadAsync($"/contracts/{Contract.Id}/word?pages=true");
-    }
+        var wasNew = Contract.Id == 0;
+        _busyMessage = pdf ? "Creating PDF..." : "Creating Word document...";
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
+        try
+        {
+            var persisted = false;
+            if (wasNew || await _pages.WasEditedAsync())
+            {
+                if (!await CapturePageAsync())
+                    return;
 
-    private Task DownloadPdfAsync() =>
-        _pages is null || Contract is null
-            ? Task.CompletedTask
-            : _pages.DownloadAsync($"/contracts/{Contract.Id}/pdf");
+                _error = null;
+                try
+                {
+                    await Contracts.SaveAsync(Contract);
+                }
+                catch (InvalidOperationException exception)
+                {
+                    _error = exception.Message;
+                    return;
+                }
+
+                await _pages.MarkCleanAsync();
+                persisted = true;
+            }
+
+            var url = pdf
+                ? $"/contracts/{Contract.Id}/pdf"
+                : $"/contracts/{Contract.Id}/word?pages=true";
+            await _pages.DownloadAsync(url);
+
+            if (wasNew)
+            {
+                _justSavedId = Contract.Id;
+                Navigation.NavigateTo($"/contracts/{Contract.Id}");
+                return;
+            }
+
+            if (persisted)
+            {
+                _saved = "Saved.";
+                _error = null;
+            }
+        }
+        finally
+        {
+            _busyMessage = null;
+        }
+    }
 
     private Task PrintAsync() =>
         _pages is null ? Task.CompletedTask : _pages.PrintAsync();
@@ -595,10 +627,9 @@ else if (Contract is not null)
             else if (_pages is not null)
                 await _pages.MarkCleanAsync();
 
-            var fieldsReady = Contract.IsCustomDocument || _editContext.Validate();
-            _saved = fieldsReady
-                ? "Saved."
-                : "The page was saved. Finish the highlighted fields before downloading.";
+            if (!Contract.IsCustomDocument)
+                _editContext.Validate();
+            _saved = "Saved.";
         }
         finally
         {
