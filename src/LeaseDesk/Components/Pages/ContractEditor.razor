@@ -2,18 +2,25 @@
 @page "/contracts/{Id:int}"
 @page "/contracts/{Id:int}/preview"
 @inject LeaseContractService Contracts
+@inject LeaseDocumentService Documents
 @inject NavigationManager Navigation
 @inject IJSRuntime JavaScript
 
-<PageTitle>@(IsNew ? "New contract" : "Edit contract")</PageTitle>
+<PageTitle>@PageHeading</PageTitle>
 
 <section class="page-header">
     <div>
-        <h1>@(IsNew ? "New contract" : "Edit contract") <small class="text-muted">@(Contract?.IsCustomDocument == true ? "Custom" : "Horizon lease")</small></h1>
-        <p class="text-muted mb-0">@(IsNew ? "Start from the Horizon lease, or from a blank page. After that, the page itself can be written and changed." : Contract?.IsCustomDocument == true ? "Click the page and type. Enter starts a new paragraph, and the toolbar changes fonts, lists, and layout." : "Horizon lease is only the starting format. Click the page to add or rewrite any clause. Enter starts a new paragraph.")</p>
+        <h1>
+            @PageHeading
+            @if (Editing && Contract is not null)
+            {
+                <small class="text-muted">@(Contract.IsCustomDocument ? "Custom" : "Horizon lease")</small>
+            }
+        </h1>
+        <p class="text-muted mb-0">@HeaderText</p>
     </div>
     <div class="page-actions">
-        @if (!IsNew && !_missing)
+        @if (Editing)
         {
             <button type="submit" form="contract-form" class="btn btn-primary">Save</button>
         }
@@ -28,15 +35,19 @@
         <a href="/">Return to the list.</a>
     </div>
 }
-else if (IsNew)
+else if (ChoosingTemplate)
 {
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="alert alert-danger" role="alert">@_error</div>
+    }
     <div class="start-grid">
-        <button type="button" class="start-card" @onclick="StartHorizonAsync">
+        <button type="button" class="start-card" @onclick="StartHorizon">
             <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
             <h2>Horizon lease</h2>
             <p>Open the lease format, then add, delete, or rewrite any clause on the page.</p>
         </button>
-        <button type="button" class="start-card" @onclick="StartBlankAsync">
+        <button type="button" class="start-card" @onclick="StartBlank">
             <i class="bi bi-file-earmark" aria-hidden="true"></i>
             <h2>Blank page</h2>
             <p>Start from an empty page and write the contract yourself, the same way you would in a document.</p>
@@ -45,8 +56,6 @@ else if (IsNew)
 }
 else if (Contract is not null)
 {
-    @if (!IsNew)
-    {
         <div class="page-tools" aria-label="Page formatting">
             <button type="button" class="tool-btn" data-command="undo" title="Undo" aria-label="Undo"><i class="bi bi-arrow-counterclockwise"></i></button>
             <button type="button" class="tool-btn" data-command="redo" title="Redo" aria-label="Redo"><i class="bi bi-arrow-clockwise"></i></button>
@@ -117,13 +126,9 @@ else if (Contract is not null)
             <button type="button" class="btn btn-sm btn-outline-secondary tool-rebuild" @onclick="RebuildPageAsync">Rebuild from fields</button>
             <p class="tool-note">Form changes update matching values on the page. The page itself stays freely editable. Rebuild from fields only if the form should rewrite the whole lease.</p>
         </div>
-    }
-    <div class="@(IsNew ? null : "studio")">
-        @if (!IsNew)
-        {
-            <ContractPages @ref="_pages" ContractId="Contract.Id" Revision="_revision" PageHtml="@Contract.PageHtml" Ready="OnPagesReadyAsync" />
-        }
-        <div class="@(IsNew ? null : "studio-form")">
+    <div class="studio">
+        <ContractPages @ref="_pages" ContractId="@(Id ?? 0)" Revision="_revision" PageHtml="@Contract.PageHtml" DraftDocx="_draftDocx" Ready="OnPagesReadyAsync" />
+        <div class="studio-form">
     @if (!string.IsNullOrWhiteSpace(_error))
     {
         <div class="alert alert-danger" role="alert">@_error</div>
@@ -132,21 +137,34 @@ else if (Contract is not null)
     {
         <div class="alert alert-success" role="status">@_saved</div>
     }
-    @if (!IsNew)
-    {
-        var gaps = LeaseDocumentService.MissingFields(Contract);
-        <div class="studio-toolbar">
-            @if (gaps.Count == 0)
-            {
-                <button type="button" class="btn btn-sm btn-primary" @onclick="DownloadWordAsync">Word</button>
-                <button type="button" class="btn btn-sm btn-outline-primary" @onclick="DownloadPdfAsync">PDF</button>
-            }
-            else
-            {
-                <span class="text-muted small">Fill in @string.Join(", ", gaps) before downloading.</span>
-            }
-        </div>
-    }
+    <div class="studio-toolbar">
+        @{
+            var gaps = LeaseDocumentService.MissingFields(Contract);
+        }
+        @if (Contract.Id != 0 && gaps.Count == 0)
+        {
+            <button type="button" class="btn btn-sm btn-print" @onclick="PrintAsync" title="Print contract" aria-label="Print contract">
+                <i class="bi bi-printer" aria-hidden="true"></i>
+                Print
+            </button>
+            <button type="button" class="btn btn-sm btn-word" @onclick="DownloadWordAsync" title="Download Word document" aria-label="Download Word document">
+                <i class="bi bi-file-earmark-word" aria-hidden="true"></i>
+                Word
+            </button>
+            <button type="button" class="btn btn-sm btn-pdf" @onclick="DownloadPdfAsync" title="Download PDF" aria-label="Download PDF">
+                <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
+                PDF
+            </button>
+        }
+        else if (gaps.Count > 0)
+        {
+            <span class="text-muted small">Fill in @string.Join(", ", gaps) before printing or downloading.</span>
+        }
+        else
+        {
+            <span class="text-muted small">Save the contract before printing or downloading.</span>
+        }
+    </div>
 
     <EditForm id="contract-form" EditContext="_editContext" OnSubmit="SaveAsync">
         <DataAnnotationsValidator />
@@ -319,41 +337,79 @@ else if (Contract is not null)
     [Parameter]
     public int? Id { get; set; }
 
+    [SupplyParameterFromQuery(Name = "print")]
+    public bool AutoPrint { get; set; }
+
     private LeaseContract? Contract { get; set; }
     private EditContext _editContext = new(new LeaseContract());
     private ContractPages? _pages;
     private IReadOnlyList<LeaseDocumentService.FieldBinding>? _syncedFields;
     private bool _missing;
+    private bool _composing;
     private bool _receiptEdited;
     private bool _pagesReady;
+    private byte[]? _draftDocx;
+    private int _justSavedId;
     private string? _error;
     private string? _saved;
     private int _revision;
+    private int _autoPrintForId;
 
-    private bool IsNew => Contract?.Id == 0;
+    private bool ChoosingTemplate => Id is null && !_composing;
+
+    private bool Editing => !_missing && !ChoosingTemplate && Contract is not null;
+
+    private string PageHeading => Id is null ? "New contract" : "Edit contract";
+
+    private string HeaderText =>
+        Contract is null
+            ? "Start from the Horizon lease, or from a blank page. After that, the page itself can be written and changed."
+            : Contract.IsCustomDocument
+                ? "Click the page and type. Enter starts a new paragraph, and the toolbar changes fonts, lists, and layout."
+                : "Horizon lease is only the starting format. Click the page to add or rewrite any clause. Enter starts a new paragraph.";
 
     protected override async Task OnParametersSetAsync()
     {
+        if (Id is null && _composing && Contract is not null)
+            return;
+
         _error = null;
         _saved = null;
         _receiptEdited = false;
         _syncedFields = null;
         _pagesReady = false;
+        _draftDocx = null;
 
         if (Id is null)
         {
-            Contract = LeaseContract.CreateHorizonDefault();
+            _composing = false;
+            _missing = false;
+            Contract = null;
             return;
         }
 
+        _composing = false;
         Contract = await Contracts.GetAsync(Id.Value);
         _missing = Contract is null;
-        if (Contract is not null)
-        {
-            BindEditContext(Contract);
-            var computed = Contract.AdvanceAmount + Contract.SecurityDepositAmount;
-            _receiptEdited = Contract.ReceiptAmount != computed;
-        }
+        if (Contract is null)
+            return;
+
+        BindEditContext(Contract);
+        _autoPrintForId = AutoPrint && LeaseDocumentService.MissingFields(Contract).Count == 0
+            ? Contract.Id
+            : 0;
+
+        var computed = Contract.AdvanceAmount + Contract.SecurityDepositAmount;
+        _receiptEdited = Contract.ReceiptAmount != computed;
+
+        if (Contract.Id != _justSavedId)
+            return;
+
+        _justSavedId = 0;
+        var fieldsReady = Contract.IsCustomDocument || _editContext.Validate();
+        _saved = fieldsReady
+            ? "Saved."
+            : "The page was saved. Finish the highlighted fields before downloading.";
     }
 
     private void BindEditContext(LeaseContract contract)
@@ -384,16 +440,38 @@ else if (Contract is not null)
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task StartHorizonAsync()
+    private void StartHorizon()
     {
-        var contract = await Contracts.SaveAsync(LeaseContract.CreateHorizonDefault());
-        Navigation.NavigateTo($"/contracts/{contract.Id}");
+        try
+        {
+            var contract = LeaseContract.CreateHorizonDefault();
+            _draftDocx = Documents.CreateWord(contract);
+            BeginDraft(contract);
+        }
+        catch (InvalidOperationException exception)
+        {
+            _error = exception.Message;
+        }
     }
 
-    private async Task StartBlankAsync()
+    private void StartBlank()
     {
-        var contract = await Contracts.SaveAsync(LeaseContract.CreateBlank());
-        Navigation.NavigateTo($"/contracts/{contract.Id}");
+        _draftDocx = null;
+        BeginDraft(LeaseContract.CreateBlank());
+    }
+
+    private void BeginDraft(LeaseContract contract)
+    {
+        Contract = contract;
+        BindEditContext(contract);
+        _receiptEdited = false;
+        _syncedFields = null;
+        _pagesReady = false;
+        _missing = false;
+        _error = null;
+        _saved = null;
+        _revision = 0;
+        _composing = true;
     }
 
     private void SyncReceipt()
@@ -404,11 +482,16 @@ else if (Contract is not null)
         Contract.ReceiptAmount = Contract.AdvanceAmount + Contract.SecurityDepositAmount;
     }
 
-    private Task OnPagesReadyAsync()
+    private async Task OnPagesReadyAsync()
     {
         _pagesReady = true;
         _syncedFields = null;
-        return SyncPageFromFieldsAsync();
+        await SyncPageFromFieldsAsync();
+        if (Contract is null || _autoPrintForId != Contract.Id || _pages is null)
+            return;
+
+        _autoPrintForId = 0;
+        await _pages.PrintAsync();
     }
 
     private async Task SyncPageFromFieldsAsync()
@@ -436,6 +519,23 @@ else if (Contract is not null)
         _pagesReady = false;
         if (_pages is not null)
             await _pages.MarkCleanAsync();
+
+        if (Contract.Id == 0)
+        {
+            try
+            {
+                _draftDocx = Documents.CreateWord(Contract);
+            }
+            catch (InvalidOperationException exception)
+            {
+                _error = exception.Message;
+                return;
+            }
+
+            _revision++;
+            return;
+        }
+
         await SaveAsync(skipPageCapture: true);
     }
 
@@ -451,6 +551,9 @@ else if (Contract is not null)
         _pages is null || Contract is null
             ? Task.CompletedTask
             : _pages.DownloadAsync($"/contracts/{Contract.Id}/pdf");
+
+    private Task PrintAsync() =>
+        _pages is null ? Task.CompletedTask : _pages.PrintAsync();
 
     private async Task SaveAsync() => await SaveAsync(skipPageCapture: false);
 
@@ -478,6 +581,7 @@ else if (Contract is not null)
 
         if (wasNew)
         {
+            _justSavedId = Contract.Id;
             Navigation.NavigateTo($"/contracts/{Contract.Id}");
             return;
         }

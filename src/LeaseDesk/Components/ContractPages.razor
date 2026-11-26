@@ -13,6 +13,9 @@
     public string? PageHtml { get; set; }
 
     [Parameter]
+    public byte[]? DraftDocx { get; set; }
+
+    [Parameter]
     public EventCallback Ready { get; set; }
 
     private readonly string _hostId = "lease-pages-" + Guid.NewGuid().ToString("N");
@@ -49,12 +52,20 @@
     public Task DownloadAsync(string url) =>
         JavaScript.InvokeVoidAsync("leaseDeskPreview.download", _hostId, url).AsTask();
 
+    public Task PrintAsync() =>
+        JavaScript.InvokeVoidAsync("leaseDeskPreview.print", _hostId).AsTask();
+
     public Task SyncFieldsAsync(IReadOnlyList<object> updates) =>
         JavaScript.InvokeVoidAsync("leaseDeskPreview.syncFields", _hostId, updates).AsTask();
 
     private async Task LoadAsync()
     {
-        if (ContractId == 0 || (_loadedId == ContractId && _loadedRevision == Revision))
+        var hasHtml = !string.IsNullOrWhiteSpace(PageHtml);
+        var hasDraft = DraftDocx is { Length: > 0 };
+        if (ContractId == 0 && !hasHtml && !hasDraft)
+            return;
+
+        if (_loadedId == ContractId && _loadedRevision == Revision)
             return;
 
         _loadedId = ContractId;
@@ -62,8 +73,9 @@
         await JavaScript.InvokeVoidAsync(
             "leaseDeskPreview.render",
             _hostId,
-            $"/contracts/{ContractId}/word?preview=true",
-            string.IsNullOrWhiteSpace(PageHtml) ? null : PageHtml);
+            ContractId == 0 ? null : $"/contracts/{ContractId}/word?preview=true",
+            hasHtml ? PageHtml : null,
+            hasHtml || DraftDocx is null ? null : Convert.ToBase64String(DraftDocx));
 
         if (Ready.HasDelegate)
             await Ready.InvokeAsync();

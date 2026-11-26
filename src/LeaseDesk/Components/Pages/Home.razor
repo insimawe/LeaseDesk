@@ -72,6 +72,12 @@
                                 <a class="btn btn-sm btn-icon btn-outline-secondary" href="@($"/contracts/{contract.Id}/preview")" title="Preview" aria-label="Preview">
                                     <i class="bi bi-eye" aria-hidden="true"></i>
                                 </a>
+                                @if (LeaseDocumentService.MissingFields(contract).Count == 0)
+                                {
+                                    <a class="btn btn-sm btn-icon btn-outline-secondary" href="@($"/contracts/{contract.Id}?print=true")" title="Print" aria-label="Print">
+                                        <i class="bi bi-printer" aria-hidden="true"></i>
+                                    </a>
+                                }
                                 <button type="button" class="btn btn-sm btn-icon btn-outline-secondary" title="Copy" aria-label="Copy" @onclick="() => CopyAsync(contract.Id)">
                                     <i class="bi bi-copy" aria-hidden="true"></i>
                                 </button>

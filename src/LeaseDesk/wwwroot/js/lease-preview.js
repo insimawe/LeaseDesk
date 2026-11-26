@@ -1,5 +1,5 @@
 window.leaseDeskPreview = {
-    render: async function (hostId, wordUrl, pageHtml) {
+    render: async function (hostId, wordUrl, pageHtml, docxBase64) {
         const host = document.getElementById(hostId);
         if (!host) return;
 
@@ -13,14 +13,20 @@ window.leaseDeskPreview = {
             if (pageHtml) {
                 host.innerHTML = sanitize(pageHtml);
             } else {
-                const word = await fetch(wordUrl);
-                if (token !== host._leaseToken) return;
-                if (!word.ok) {
-                    host.appendChild(message(await word.text()));
-                    return;
+                let buffer;
+                if (docxBase64) {
+                    buffer = base64ToBuffer(docxBase64);
+                } else {
+                    const word = await fetch(wordUrl);
+                    if (token !== host._leaseToken) return;
+                    if (!word.ok) {
+                        host.appendChild(message(await word.text()));
+                        return;
+                    }
+
+                    buffer = await word.arrayBuffer();
                 }
 
-                const buffer = await word.arrayBuffer();
                 if (token !== host._leaseToken) return;
                 await docx.renderAsync(buffer, host, null, {
                     className: "docx",
@@ -127,8 +133,66 @@ window.leaseDeskPreview = {
         if (!changed) return;
         host.classList.add("is-edited");
         scheduleReflow(host);
+    },
+
+    print: function (hostId) {
+        const host = document.getElementById(hostId);
+        if (!host || !host.querySelector("section.docx")) {
+            window.alert("The contract pages are not ready to print yet.");
+            return;
+        }
+
+        preparePrint();
+        window.print();
     }
 };
+
+let printSnapshot = null;
+
+function preparePrint() {
+    const host = document.querySelector(".studio-pages");
+    if (!host) return;
+    const pages = [...host.querySelectorAll("section.docx")];
+    if (!pages.length || printSnapshot) return;
+
+    printSnapshot = pages.map(function (page) {
+        return { page: page, zoom: page.style.zoom };
+    });
+    pages.forEach(function (page) { page.style.zoom = "1"; });
+
+    const sample = pages[0];
+    const width = Math.max(sample.offsetWidth, 1);
+    const height = Math.max(sample.offsetHeight, 1);
+    let style = document.getElementById("lease-print-page");
+    if (!style) {
+        style = document.createElement("style");
+        style.id = "lease-print-page";
+        document.head.appendChild(style);
+    }
+    style.textContent = "@media print { @page { size: " + width + "px " + height + "px; margin: 0; } }";
+    document.body.classList.add("is-printing");
+}
+
+function restorePrint() {
+    if (printSnapshot) {
+        printSnapshot.forEach(function (item) {
+            if (item.page.isConnected) item.page.style.zoom = item.zoom;
+        });
+        printSnapshot = null;
+    }
+    document.body.classList.remove("is-printing");
+}
+
+window.addEventListener("beforeprint", preparePrint);
+window.addEventListener("afterprint", restorePrint);
+
+function base64ToBuffer(value) {
+    const binary = atob(value);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++)
+        bytes[i] = binary.charCodeAt(i);
+    return bytes.buffer;
+}
 
 function cssEscape(value) {
     if (window.CSS && typeof window.CSS.escape === "function")
