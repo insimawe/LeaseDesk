@@ -102,7 +102,7 @@ public class LibreOfficePdfConverter
     {
         var browser = FindBrowser()
             ?? throw new InvalidOperationException(
-                "The PDF could not be created because neither LibreOffice nor Microsoft Edge is available. Download the Word file instead.");
+                "The PDF could not be created because no browser is available. Download the Word file instead.");
 
         var directory = Path.Combine(Path.GetTempPath(), "leasedesk-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
@@ -122,19 +122,34 @@ public class LibreOfficePdfConverter
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            start.Environment["HOME"] = directory;
             start.ArgumentList.Add("--headless");
             start.ArgumentList.Add("--disable-gpu");
             start.ArgumentList.Add("--no-first-run");
             start.ArgumentList.Add("--no-pdf-header-footer");
+            if (!browser.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            {
+                start.ArgumentList.Add("--no-sandbox");
+                start.ArgumentList.Add("--disable-dev-shm-usage");
+            }
             start.ArgumentList.Add("--user-data-dir=" + profile);
             start.ArgumentList.Add("--print-to-pdf=" + pdfPath);
             start.ArgumentList.Add(new Uri(htmlPath).AbsoluteUri);
 
             using var process = Process.Start(start)
                 ?? throw new InvalidOperationException("The browser could not be started to create the PDF.");
+            var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
             await process.WaitForExitAsync(cancellationToken);
+            await stdoutTask;
+            var stderr = await stderrTask;
             if (!File.Exists(pdfPath))
-                throw new InvalidOperationException("The PDF could not be created. Download the Word file instead.");
+            {
+                var detail = string.IsNullOrWhiteSpace(stderr)
+                    ? ""
+                    : " " + stderr.Trim().Split('\n', '\r').Last(line => line.Length > 0);
+                throw new InvalidOperationException("The PDF could not be created." + detail);
+            }
 
             return await File.ReadAllBytesAsync(pdfPath, cancellationToken);
         }
@@ -152,14 +167,49 @@ public class LibreOfficePdfConverter
 
     private static string? FindBrowser()
     {
+        var configured = Environment.GetEnvironmentVariable("LEASEDESK_BROWSER");
+        if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured))
+            return configured;
+
         var candidates = new[]
         {
+            "/usr/bin/google-chrome-stable",
+            "/usr/bin/google-chrome",
+            "/usr/bin/chromium",
+            "/usr/bin/chromium-browser",
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft", "Edge", "Application", "msedge.exe"),
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Microsoft", "Edge", "Application", "msedge.exe"),
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Google", "Chrome", "Application", "chrome.exe"),
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Google", "Chrome", "Application", "chrome.exe")
         };
 
-        return candidates.FirstOrDefault(File.Exists);
+        var installed = candidates.FirstOrDefault(File.Exists);
+        if (installed is not null)
+            return installed;
+
+        foreach (var name in new[] { "google-chrome-stable", "google-chrome", "chromium", "chromium-browser", "msedge" })
+        {
+            var found = FindOnPath(name);
+            if (found is not null)
+                return found;
+        }
+
+        return null;
+    }
+
+    private static string? FindOnPath(string name)
+    {
+        var path = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrWhiteSpace(path))
+            return null;
+
+        foreach (var folder in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var exe = Path.Combine(folder, OperatingSystem.IsWindows() ? name + ".exe" : name);
+            if (File.Exists(exe))
+                return exe;
+        }
+
+        return null;
     }
 }

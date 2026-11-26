@@ -32,13 +32,15 @@ public static partial class PageHtmlDocument
             foreach (var page in pages)
             {
                 var blocks = Blocks(page).ToList();
-                if (blocks.Count == 0)
+                if (blocks.Count == 0 || !PageHasContent(page))
                     continue;
 
+                CollapseSpacing(blocks);
                 if (wrote)
-                    body.Append(new Paragraph(new Run(new Break { Type = BreakValues.Page })));
+                    StartNewPage(body, blocks[0]);
 
-                body.Append(PageFrame(blocks, page));
+                foreach (var block in blocks)
+                    body.Append(block);
                 wrote = true;
             }
 
@@ -77,6 +79,8 @@ public static partial class PageHtmlDocument
                 case "h2":
                 case "h3":
                 case "li":
+                    if (child.GetAttribute("data-page-break") is not null)
+                        break;
                     yield return Paragraph(child, numberingId: null);
                     break;
                 default:
@@ -137,9 +141,20 @@ public static partial class PageHtmlDocument
         if (justification is not null)
             properties.Append(new Justification { Val = justification });
 
-        var line = LineSpacing(Css(source, "line-height"));
-        if (line is not null)
-            properties.Append(new SpacingBetweenLines { Line = line, LineRule = LineSpacingRuleValues.Auto });
+        var indent = Css(source, "margin-inline-start") ?? Css(source, "margin-left");
+        if (!string.IsNullOrWhiteSpace(indent) && indent is not "0" and not "0pt" and not "0px")
+            properties.Append(new Indentation { Left = Twips(indent, 0).ToString(CultureInfo.InvariantCulture) });
+
+        var line = LineBoxOf(Css(source, "line-height"), DominantSize(source) ?? 24);
+        var fallbackAfter = source.LocalName is "p" or "h1" or "h2" or "h3" or "li" ? 120 : 0;
+        properties.Append(new SpacingBetweenLines
+        {
+            Before = Twips(Css(source, "margin-top"), 0).ToString(CultureInfo.InvariantCulture),
+            After = Twips(Css(source, "margin-bottom"), fallbackAfter).ToString(CultureInfo.InvariantCulture),
+            Line = line?.Value ?? "240",
+            LineRule = line?.Rule ?? LineSpacingRuleValues.Auto
+        });
+        properties.Append(new WidowControl { Val = false });
 
         if (numberingId is not null)
         {
@@ -326,43 +341,62 @@ public static partial class PageHtmlDocument
         && !value.Contains("hidden", StringComparison.OrdinalIgnoreCase)
         && DigitPattern().IsMatch(value);
 
-    private static Table PageFrame(IReadOnlyList<OpenXmlElement> blocks, IElement page)
+    private static void CollapseSpacing(IReadOnlyList<OpenXmlElement> blocks)
     {
-        var box = Box(page);
-        var contentWidth = Math.Max(box.Width - box.Left - box.Right, 1000);
-        var contentHeight = Math.Max(box.Height - box.Top - box.Bottom, 1000);
-        var width = contentWidth.ToString(CultureInfo.InvariantCulture);
-
-        var cell = new TableCell(
-            new TableCellProperties(
-                new TableCellWidth { Width = width, Type = TableWidthUnitValues.Dxa },
-                new TableCellMargin(
-                    new TopMargin { Width = "0", Type = TableWidthUnitValues.Dxa },
-                    new LeftMargin { Width = "0", Type = TableWidthUnitValues.Dxa },
-                    new BottomMargin { Width = "0", Type = TableWidthUnitValues.Dxa },
-                    new RightMargin { Width = "0", Type = TableWidthUnitValues.Dxa })));
+        Paragraph? previous = null;
         foreach (var block in blocks)
-            cell.Append(block);
-        if (cell.LastChild is not Wordprocessing.Paragraph)
-            cell.Append(new Wordprocessing.Paragraph());
+        {
+            if (block is not Paragraph current)
+            {
+                previous = null;
+                continue;
+            }
 
-        return new Table(
-            new TableProperties(
-                new TableWidth { Width = width, Type = TableWidthUnitValues.Dxa },
-                new TableLayout { Type = TableLayoutValues.Fixed },
-                new TableBorders(
-                    new TopBorder { Val = BorderValues.Nil },
-                    new LeftBorder { Val = BorderValues.Nil },
-                    new BottomBorder { Val = BorderValues.Nil },
-                    new RightBorder { Val = BorderValues.Nil },
-                    new InsideHorizontalBorder { Val = BorderValues.Nil },
-                    new InsideVerticalBorder { Val = BorderValues.Nil })),
-            new TableGrid(new GridColumn { Width = width }),
-            new TableRow(
-                new TableRowProperties(
-                    new TableRowHeight { Val = (uint)contentHeight, HeightType = HeightRuleValues.Exact },
-                    new CantSplit()),
-                cell));
+            if (previous is not null)
+            {
+                var before = SpacingOf(previous);
+                var after = SpacingOf(current);
+                var gap = Math.Max(ReadTwips(before.After), ReadTwips(after.Before));
+                before.After = gap.ToString(CultureInfo.InvariantCulture);
+                after.Before = "0";
+            }
+
+            previous = current;
+        }
+    }
+
+    private static SpacingBetweenLines SpacingOf(Paragraph paragraph)
+    {
+        var properties = paragraph.GetFirstChild<ParagraphProperties>()
+            ?? paragraph.PrependChild(new ParagraphProperties());
+        return properties.GetFirstChild<SpacingBetweenLines>()
+            ?? properties.AppendChild(new SpacingBetweenLines { Before = "0", After = "0" });
+    }
+
+    private static int ReadTwips(StringValue? value) =>
+        int.TryParse(value?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var twips) ? twips : 0;
+
+    private static bool PageHasContent(IElement page) =>
+        !string.IsNullOrWhiteSpace(page.TextContent) || page.QuerySelector("table, img") is not null;
+
+    private static void StartNewPage(Body body, OpenXmlElement firstBlock)
+    {
+        if (firstBlock is Paragraph paragraph)
+        {
+            var properties = paragraph.GetFirstChild<ParagraphProperties>();
+            if (properties is null)
+            {
+                properties = new ParagraphProperties();
+                paragraph.PrependChild(properties);
+            }
+
+            properties.PageBreakBefore = new PageBreakBefore();
+            return;
+        }
+
+        body.Append(new Paragraph(new ParagraphProperties(
+            new PageBreakBefore(),
+            new SpacingBetweenLines { Before = "0", After = "0", Line = "20", LineRule = LineSpacingRuleValues.Exact })));
     }
 
     private static SectionProperties Section(IElement page)
@@ -557,13 +591,34 @@ public static partial class PageHtmlDocument
         return (int)Math.Clamp(Math.Round(number), 0, 255);
     }
 
-    private static string? LineSpacing(string? value)
+    private readonly record struct LineBox(string Value, LineSpacingRuleValues Rule);
+
+    private static int? DominantSize(IElement source)
+    {
+        var sized = source.QuerySelector("[style*='font-size']");
+        return HalfPoints(sized is null ? Css(source, "font-size") : Css(sized, "font-size"));
+    }
+
+    private static LineBox? LineBoxOf(string? value, int halfPoints)
     {
         if (string.IsNullOrWhiteSpace(value))
             return null;
 
-        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var unitless))
-            return ((int)Math.Round(unitless * 240)).ToString(CultureInfo.InvariantCulture);
+        var text = value.Trim().ToLowerInvariant();
+        if (text is "normal" or "inherit" or "initial" or "unset")
+            return null;
+
+        if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var unitless))
+        {
+            var twips = (int)Math.Round(unitless * halfPoints * 10);
+            return new LineBox(Math.Max(twips, 20).ToString(CultureInfo.InvariantCulture), LineSpacingRuleValues.Exact);
+        }
+
+        if (text.EndsWith("pt", StringComparison.Ordinal) && double.TryParse(text[..^2], NumberStyles.Float, CultureInfo.InvariantCulture, out var points))
+            return new LineBox(((int)Math.Round(points * 20)).ToString(CultureInfo.InvariantCulture), LineSpacingRuleValues.Exact);
+
+        if (text.EndsWith("px", StringComparison.Ordinal) && double.TryParse(text[..^2], NumberStyles.Float, CultureInfo.InvariantCulture, out var pixels))
+            return new LineBox(((int)Math.Round(pixels * 15)).ToString(CultureInfo.InvariantCulture), LineSpacingRuleValues.Exact);
 
         return null;
     }

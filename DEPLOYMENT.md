@@ -11,7 +11,7 @@ LeaseDesk is a single .NET 10 Blazor Server application.
 - Database: SQLite
 - Word documents: Open XML SDK
 - Browser preview: `docx-preview`
-- PDF generation: Microsoft Edge, Google Chrome, or LibreOffice
+- PDF generation: Google Chrome in Docker, or Microsoft Edge or Google Chrome on Windows
 - Container: Docker
 - Cloud host: Render
 
@@ -325,7 +325,7 @@ It does not require a separate Render service.
 
 Word generation also works inside the current container through the Open XML SDK.
 
-PDF generation requires a supported browser or LibreOffice. The current Docker image does not install either one, so PDF export might fail on Render. Supporting PDF export requires adding a Linux-compatible renderer to the Docker image and updating the converter's Linux browser detection.
+PDF generation prints the contract pages with Google Chrome. The Docker image installs Chrome, so PDF export works on Render after this image is deployed. On a Windows PC without Docker, the app uses Microsoft Edge or Google Chrome instead.
 
 ## 16. Troubleshooting
 
