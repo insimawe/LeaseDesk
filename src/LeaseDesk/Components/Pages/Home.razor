@@ -74,9 +74,15 @@
                                 </a>
                                 @if (LeaseDocumentService.MissingFields(contract).Count == 0)
                                 {
-                                    <a class="btn btn-sm btn-icon btn-outline-secondary" href="@($"/contracts/{contract.Id}?print=true")" title="Print" aria-label="Print">
+                                    <button type="button"
+                                            class="btn btn-sm btn-icon btn-outline-secondary"
+                                            title="Print"
+                                            aria-label="Print"
+                                            aria-busy="@(_printingId == contract.Id)"
+                                            disabled="@(_printingId == contract.Id)"
+                                            @onclick="() => PrintFromListAsync(contract)">
                                         <i class="bi bi-printer" aria-hidden="true"></i>
-                                    </a>
+                                    </button>
                                 }
                                 <button type="button" class="btn btn-sm btn-icon btn-outline-secondary" title="Copy" aria-label="Copy" @onclick="() => CopyAsync(contract.Id)">
                                     <i class="bi bi-copy" aria-hidden="true"></i>
@@ -117,12 +123,27 @@
     <div class="modal-backdrop fade show"></div>
 }
 
+@if (_printContract is not null)
+{
+    <div class="lease-print-stage" aria-hidden="true">
+        <ContractPages @key="_printContract.Id"
+                       @ref="_printPages"
+                       ContractId="@_printContract.Id"
+                       PageHtml="@_printContract.PageHtml"
+                       Ready="OnListPagesReadyAsync" />
+    </div>
+}
+
 @code {
     private string _query = "";
     private string? _error;
     private bool _hasAny;
     private IReadOnlyList<LeaseContract> _contracts = [];
     private LeaseContract? _pendingDelete;
+    private LeaseContract? _printContract;
+    private ContractPages? _printPages;
+    private int? _printingId;
+    private bool _printReady;
 
     private string DeleteLabel =>
         string.IsNullOrWhiteSpace(_pendingDelete?.LesseeName)
@@ -138,6 +159,47 @@
         _hasAny = _contracts.Count > 0 || !string.IsNullOrWhiteSpace(_query);
         if (_contracts.Count == 0 && string.IsNullOrWhiteSpace(_query))
             _hasAny = false;
+    }
+
+    private async Task PrintFromListAsync(LeaseContract contract)
+    {
+        if (_printingId is not null)
+            return;
+
+        if (_printContract?.Id == contract.Id && _printReady && _printPages is not null)
+        {
+            _printingId = contract.Id;
+            try
+            {
+                await _printPages.PrintAsync();
+            }
+            finally
+            {
+                _printingId = null;
+            }
+
+            return;
+        }
+
+        _printReady = false;
+        _printingId = contract.Id;
+        _printContract = contract;
+    }
+
+    private async Task OnListPagesReadyAsync()
+    {
+        if (_printReady || _printPages is null || _printingId is null)
+            return;
+
+        _printReady = true;
+        try
+        {
+            await _printPages.PrintAsync();
+        }
+        finally
+        {
+            _printingId = null;
+        }
     }
 
     private async Task CopyAsync(int id)

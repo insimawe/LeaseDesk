@@ -337,9 +337,6 @@ else if (Contract is not null)
     [Parameter]
     public int? Id { get; set; }
 
-    [SupplyParameterFromQuery(Name = "print")]
-    public bool AutoPrint { get; set; }
-
     private LeaseContract? Contract { get; set; }
     private EditContext _editContext = new(new LeaseContract());
     private ContractPages? _pages;
@@ -353,7 +350,6 @@ else if (Contract is not null)
     private string? _error;
     private string? _saved;
     private int _revision;
-    private int _autoPrintForId;
 
     private bool ChoosingTemplate => Id is null && !_composing;
 
@@ -395,9 +391,6 @@ else if (Contract is not null)
             return;
 
         BindEditContext(Contract);
-        _autoPrintForId = AutoPrint && LeaseDocumentService.MissingFields(Contract).Count == 0
-            ? Contract.Id
-            : 0;
 
         var computed = Contract.AdvanceAmount + Contract.SecurityDepositAmount;
         _receiptEdited = Contract.ReceiptAmount != computed;
@@ -487,11 +480,6 @@ else if (Contract is not null)
         _pagesReady = true;
         _syncedFields = null;
         await SyncPageFromFieldsAsync();
-        if (Contract is null || _autoPrintForId != Contract.Id || _pages is null)
-            return;
-
-        _autoPrintForId = 0;
-        await _pages.PrintAsync();
     }
 
     private async Task SyncPageFromFieldsAsync()

@@ -142,15 +142,16 @@ window.leaseDeskPreview = {
             return;
         }
 
-        preparePrint();
+        preparePrint(host);
         window.print();
     }
 };
 
 let printSnapshot = null;
 
-function preparePrint() {
-    const host = document.querySelector(".studio-pages");
+function preparePrint(host) {
+    if (!host || !host.classList || !host.classList.contains("studio-pages"))
+        host = document.querySelector(".lease-print-stage .studio-pages") || document.querySelector(".studio-pages");
     if (!host) return;
     const pages = [...host.querySelectorAll("section.docx")];
     if (!pages.length || printSnapshot) return;

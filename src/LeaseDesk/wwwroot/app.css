@@ -478,6 +478,14 @@ a:hover {
     border-radius: 12px;
 }
 
+.lease-print-stage {
+    position: fixed;
+    left: -12000px;
+    top: 0;
+    width: 900px;
+    pointer-events: none;
+}
+
 .studio-pages .docx-wrapper {
     box-sizing: border-box;
     width: max-content;
@@ -853,6 +861,16 @@ h1:focus {
 @media print {
     body.is-printing {
         background: #fff !important;
+    }
+
+    body.is-printing:has(.lease-print-stage) .container-fluid > :not(.lease-print-stage) {
+        display: none !important;
+    }
+
+    body.is-printing .lease-print-stage {
+        position: static !important;
+        left: auto !important;
+        width: auto !important;
     }
 
     body.is-printing .app-header,
